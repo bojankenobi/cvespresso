@@ -233,7 +233,7 @@ async def generate_pdf(request: Request, dossier_req: FullDossierRequest, backgr
 
     try:
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": sys_msg},
                 {"role": "user", "content": user_prompt}
@@ -389,7 +389,7 @@ async def generate_cover_letter(request: Request, dossier_req: FullDossierReques
 
     try:
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": sys_msg},
                 {"role": "user", "content": user_prompt}
