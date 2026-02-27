@@ -43,7 +43,7 @@ FONT_PATH = os.path.join(current_dir, "arial.ttf")
 
 # --- API KLIJENT ---
 api_key = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=api_key)
+client = Groq(api_key=api_key, max_retries=0)
 
 # --- POMOĆNE FUNKCIJE ---
 def sanitize_input(text: str) -> str:
@@ -242,6 +242,7 @@ async def generate_pdf(request: Request, dossier_req: FullDossierRequest, backgr
         )
         tailored_text = completion.choices[0].message.content
     except Exception as e:
+        print(f"🔥 GROQ DETALJNA GREŠKA: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
     try:
@@ -423,4 +424,5 @@ async def generate_cover_letter(request: Request, dossier_req: FullDossierReques
         )
         
     except Exception as e:
+        print(f"🔥 GROQ DETALJNA GREŠKA: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
