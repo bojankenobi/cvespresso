@@ -139,6 +139,16 @@ async def read_index(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Template Error: {str(e)}")
 
+@app.get("/sw.js")
+async def serve_sw():
+    # Servira sw.js sa root-a kako bi PWA radio pravilno
+    return FileResponse(os.path.join(root_dir, "static", "sw.js"), media_type="application/javascript")
+
+@app.get("/manifest.json")
+async def serve_manifest():
+    # Servira manifest sa root-a
+    return FileResponse(os.path.join(root_dir, "static", "manifest.json"), media_type="application/json")
+
 @app.post("/generate-pdf/")
 @limiter.limit("5/minute") 
 async def generate_pdf(request: Request, dossier_req: FullDossierRequest, background_tasks: BackgroundTasks, lang: str = Query("sr", enum=["sr", "en"])):

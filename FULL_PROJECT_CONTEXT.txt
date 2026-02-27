@@ -10,6 +10,7 @@ cv builder/
             cv_template.html
     static/
         manifest.json
+        sw.js
         css/
             style.css
             tailwind-output.css
@@ -26,15 +27,19 @@ START OF FILE: index.html
 <!DOCTYPE html>
 <html lang="sr" class="light">
 <head>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#111827">
     <title>CVespresso | Powered by Bojan Pejić</title>
+    <link rel="manifest" href="/manifest.json">
     
     <!-- ✅ POPRAVLJENO: Uklonjeni razmaci u URL-ovima -->
     <link href="https://fonts.googleapis.com/css2?family=Satisfy&family=Geist:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/tailwind-output.css">
     
+    <link rel="stylesheet" href="/static/css/tailwind-output.css">
+    <link rel="stylesheet" href="/static/css/tailwind-output.css?v=2.0">
+    <link rel="stylesheet" href="/static/css/tailwind-output.css?v=3.0">
     <!-- ✅ POPRAVLJENO: Uklonjeni razmaci -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://www.google.com/recaptcha/api.js?render=TVOJ_SITE_KEY"></script>
@@ -48,6 +53,33 @@ START OF FILE: index.html
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-6 font-sans transition-all duration-500 bg-[var(--bg)] text-[var(--text)]">
+    <div id="sideDrawer" class="fixed top-0 left-0 h-full w-80 bg-[var(--bg)] border-r border-[var(--border)] z-[110] transform -translate-x-full transition-transform duration-500 ease-in-out flex flex-col shadow-2xl">
+        
+        <div class="p-6 flex justify-between items-center border-b border-[var(--border)]">
+            <h2 class="text-xs font-black uppercase tracking-widest opacity-50">Tvoj Arhiv</h2>
+            <button id="btnCloseMenu" class="opacity-40 hover:opacity-100 text-xl text-[var(--border-hover)]">&times;</button>
+        </div>
+
+        <div class="p-6 border-b border-[var(--border)]">
+            <button id="drawerOpenDossier" class="btn-espresso w-full py-3 rounded-lg text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                Master Dossier
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-4" id="applicationsList">
+            <div class="text-center opacity-20 text-[10px] uppercase font-bold tracking-widest mt-10">
+                Nema sačuvanih CV-jeva
+            </div>
+            
+            </div>
+        
+        <div class="p-4 border-t border-[var(--border)] text-center">
+            <span class="text-[9px] font-bold uppercase tracking-widest opacity-30" id="usageLimitText">Iskorišćeno: 0 / 50</span>
+        </div>
+    </div>
+
+    <div id="drawerBackdrop" class="fixed inset-0 bg-black/50 z-[105] hidden transition-opacity duration-500 opacity-0"></div>
 
     <div id="authBar" class="fixed top-4 right-6 z-[100] flex gap-4">
         <button id="btnLogin" onclick="loginWithGoogle()" class="text-[9px] font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-all bg-[var(--bg)] p-2 rounded border border-[var(--border)]">
@@ -59,11 +91,23 @@ START OF FILE: index.html
     </div>
 
     <header class="w-full max-w-2xl flex justify-between items-center mb-16 mt-12">
-        <div class="flex items-baseline gap-1 select-none">
-            <span class="text-2xl font-bold tracking-tighter uppercase">CV</span>
-            <span class="text-3xl font-cursive">espresso</span>
+        <div class="flex items-center gap-4">
+            <button id="btnMenu" class="focus:outline-none opacity-40 hover:opacity-100 transition-opacity">
+                <svg class="w-6 h-6 stroke-[var(--border-hover)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            
+            <div class="flex items-baseline gap-1 select-none">
+                <span class="text-2xl font-bold tracking-tighter uppercase">CV</span>
+                <span class="text-3xl font-cursive">espresso</span>
+            </div>
         </div>
         <div class="flex items-center gap-8">
+            <button id="btnHelp" class="text-[10px] font-bold tracking-[0.2em] uppercase opacity-40 hover:opacity-100 transition-opacity">
+                [ Info ]
+            </button>
+
             <button id="langBtn" class="text-xs font-bold tracking-[0.2em] uppercase opacity-40 hover:opacity-100 transition-opacity">
                 sr
             </button>
@@ -83,11 +127,7 @@ START OF FILE: index.html
     </header>
 
     <main class="w-full max-w-2xl space-y-10">
-        <div class="text-center">
-            <button id="openDossier" class="text-[9px] font-bold uppercase tracking-[0.4em] opacity-20 hover:opacity-100 transition-all">
-                [ Edit Master Dossier ]
-            </button>
-        </div>
+        
 
         <textarea id="jobDesc" rows="12" 
             class="w-full p-6 rounded-xl transition-all resize-none placeholder:opacity-20 shadow-inner bg-transparent border border-[var(--border)]" 
@@ -115,15 +155,57 @@ START OF FILE: index.html
         </div>
     </div>
 
+    <div id="helpModal" class="fixed inset-0 z-[120] flex items-center justify-center hidden">
+        <div id="helpBackdrop" class="absolute inset-0 bg-black/50 transition-opacity duration-300 opacity-0"></div>
+        
+        <div id="helpContent" class="relative bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-center mb-6 border-b border-[var(--border)] pb-4">
+                <h3 class="text-sm font-black uppercase tracking-widest text-[var(--border-hover)]" id="helpTitle">Kako se koristi?</h3>
+                <button id="btnCloseHelp" class="text-2xl font-bold opacity-40 hover:opacity-100">&times;</button>
+            </div>
+            
+            <div class="space-y-4 text-sm opacity-80" id="helpTextSr">
+                <p><strong>1. Vaš Profil:</strong> Otvorite meni (gore levo) i popunite <em>Master Dossier</em>. Tu unosite sve vaše veštine, obrazovanje i celokupno radno iskustvo.</p>
+                <p><strong>2. Oglas za posao:</strong> Pronašli ste posao? Prekopirajte ceo tekst tog oglasa u veliko polje na sredini ekrana.</p>
+                <p><strong>3. Magija:</strong> Kliknite na <strong>Build CV</strong> ili <strong>Letter</strong>. AI će analizirati oglas, izvući samo ono što je bitno iz vašeg dosijea i skrojiti vam savršen PDF dokument.</p>
+                <p><strong>4. Arhiva:</strong> Svaki dokument se automatski čuva u fioci (limit je 50 aplikacija).</p>
+            </div>
+
+            <div class="space-y-4 text-sm opacity-80 hidden" id="helpTextEn">
+                <p><strong>1. Your Profile:</strong> Open the menu (top left) and fill out your <em>Master Dossier</em>. Enter all your skills, education, and full work history here.</p>
+                <p><strong>2. Job Spec:</strong> Found a job? Paste the text of the job description you are applying for into the main text area.</p>
+                <p><strong>3. The Magic:</strong> Click <strong>Build CV</strong> or <strong>Letter</strong>. The AI will analyze the job, extract the most relevant info from your Dossier, and generate a tailored PDF document.</p>
+                <p><strong>4. Archive:</strong> Every generated document is automatically saved in your drawer (limit is 50 applications).</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="pdfModal" class="fixed inset-0 z-[150] flex flex-col items-center justify-center hidden">
+        <div id="pdfBackdrop" class="absolute inset-0 bg-black/80 transition-opacity"></div>
+        
+        <div class="relative w-full max-w-4xl h-[90vh] bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden m-4 z-10">
+            <div class="flex justify-between items-center p-4 border-b border-[var(--border)] bg-[var(--bg)]">
+                <h3 class="text-xs font-black uppercase tracking-widest opacity-50" id="pdfTitle">Pregled Dokumenta</h3>
+                <div class="flex gap-4">
+                    <button id="btnDownloadPdf" class="btn-espresso px-4 py-2 rounded text-[10px] font-bold uppercase tracking-widest border border-green-500/50 hover:bg-green-500/10 text-green-500">
+                        ↓ Preuzmi PDF
+                    </button>
+                    <button id="btnClosePdf" class="text-2xl font-bold opacity-40 hover:opacity-100 px-2">&times;</button>
+                </div>
+            </div>
+            <iframe id="pdfFrame" class="w-full flex-1 bg-white"></iframe>
+        </div>
+    </div>
+
     <footer class="mt-auto py-12 text-[8px] font-bold uppercase tracking-[0.6em] select-none text-center w-full opacity-30">
         Bojan Pejić &copy; 2026 | Head of Production
     </footer>
 
     <!-- ✅ SKRIPTE NA KRAJU - PRAVILAN REDOSLED -->
-    <script src="/static/js/main.js"></script>
-    <script src="/static/js/dossier.js"></script>
-    <script src="/static/js/api.js"></script>
-    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/main.js?v=5"></script>
+    <script src="/static/js/dossier.js?v=5"></script>
+    <script src="/static/js/api.js?v=5"></script>
+    <script src="/static/js/auth.js?v=5"></script>
     
     <!-- ✅ DODATO: Debug log za potvrdu da je sve učitano -->
     <script>
@@ -132,6 +214,17 @@ START OF FILE: index.html
             console.log("🔘 openDossier btn:", document.getElementById('openDossier') ? "OK" : "MISSING");
             console.log("📝 dossierEditor:", document.getElementById('dossierEditor')?.classList.contains('hidden') ? "HIDDEN (good!)" : "VISIBLE (bad!)");
         });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                console.log('PWA Service Worker registrovan!', reg);
+            }).catch(err => {
+                console.log('PWA Service Worker greška:', err);
+            });
+            });
+        }
     </script>
 </body>
 </html>
@@ -154,6 +247,9 @@ START OF FILE: package.json
   "type": "commonjs",
   "devDependencies": {
     "tailwindcss": "^4.2.1"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.2.1"
   }
 }
 
@@ -180,12 +276,27 @@ END OF FILE: tailwind.config.js
 START OF FILE: vercel.json
 --------------------
 {
-  "rewrite": [{ "source": "/(.*)", "destination": "/api/main" }],
-  "functions": {
-    "api/main.py": {
-      "runtime": "vercel-python@0.0.6"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/main.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "static/**",
+      "use": "@vercel/static"
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/main.py"
+    }
+  ]
 }
 --------------------
 END OF FILE: vercel.json
@@ -195,8 +306,10 @@ START OF FILE: api\main.py
 import os
 import json
 import re
+import uuid       
+import tempfile   
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, BackgroundTasks
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -213,7 +326,6 @@ from slowapi.errors import RateLimitExceeded
 load_dotenv()
 
 # --- INICIJALIZACIJA LIMITERA ---
-# key_func=get_remote_address koristi IP adresu korisnika za praćenje limita
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="CVespresso API")
 
@@ -238,7 +350,7 @@ FONT_PATH = os.path.join(current_dir, "arial.ttf")
 api_key = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=api_key)
 
-# --- POMOĆNE FUNKCIJE ZA BEZBEDNOST ---
+# --- POMOĆNE FUNKCIJE ---
 def sanitize_input(text: str) -> str:
     """Uklanja HTML tagove radi sprečavanja XSS napada."""
     if not text:
@@ -255,6 +367,58 @@ def sanitize_dossier(dossier: dict) -> dict:
     elif isinstance(dossier, str):
         return sanitize_input(dossier)
     return dossier
+
+def remove_temp_file(path: str):
+    """Brisanje fajla u pozadini nakon slanja korisniku radi uštede prostora."""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception as e:
+        print(f"Greška pri brisanju temp fajla: {e}")
+
+def create_pdf_header(pdf: FPDF, profile_data: dict):
+    """Zajednička funkcija za iscrtavanje profesionalnog zaglavlja na CV-ju i Pismu"""
+    pdf.set_font('ArialUni', size=20)
+    pdf.set_text_color(26, 28, 30)
+    pdf.cell(0, 10, profile_data.get("full_name", "CVespresso User"), ln=True, align='L')
+    
+    # --- KONTAKT INFORMACIJE (Email, Telefon, Lokacija) ---
+    pdf.set_font('ArialUni', size=9)
+    pdf.set_text_color(100, 100, 100)
+    
+    contact_info = []
+    if profile_data.get("email"): contact_info.append(profile_data.get("email"))
+    if profile_data.get("phone"): contact_info.append(profile_data.get("phone"))
+    if profile_data.get("location"): contact_info.append(profile_data.get("location"))
+    
+    if contact_info:
+        pdf.cell(0, 5, " | ".join(contact_info), ln=True, align='L')
+
+    # --- SOCIJALNE MREŽE I PORTFOLIO ---
+    links = []
+    if profile_data.get("linkedin"): 
+        clean_in = profile_data.get("linkedin").replace("https://", "").replace("http://", "").rstrip('/')
+        links.append(f"LinkedIn: {clean_in}")
+    if profile_data.get("github"): 
+        clean_git = profile_data.get("github").replace("https://", "").replace("http://", "").rstrip('/')
+        links.append(f"GitHub: {clean_git}")
+    if profile_data.get("website"): 
+        clean_web = profile_data.get("website").replace("https://", "").replace("http://", "").rstrip('/')
+        links.append(f"Web: {clean_web}")
+        
+    if links:
+        pdf.cell(0, 5, " | ".join(links), ln=True, align='L')
+    
+    # Linija razdvajanja ispod zaglavlja
+    pdf.set_draw_color(200, 200, 200)
+    current_y = pdf.get_y() + 3
+    pdf.line(10, current_y, 200, current_y)
+    pdf.ln(8)
+
+    # Prebacivanje na glavnu crnu boju za ostatak teksta
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('ArialUni', size=11)
+
 
 # Model podataka
 class FullDossierRequest(BaseModel):
@@ -281,28 +445,86 @@ async def read_index(request: Request):
         raise HTTPException(status_code=500, detail=f"Template Error: {str(e)}")
 
 @app.post("/generate-pdf/")
-@limiter.limit("5/minute") # Ograničenje na 5 zahteva po minuti po IP adresi
-async def generate_pdf(request: Request, dossier_req: FullDossierRequest, lang: str = Query("sr", enum=["sr", "en"])):
+@limiter.limit("5/minute") 
+async def generate_pdf(request: Request, dossier_req: FullDossierRequest, background_tasks: BackgroundTasks, lang: str = Query("sr", enum=["sr", "en"])):
     """Generiše PDF CV na osnovu Master JSON-a i oglasa"""
     
-    # 1. Bezbednosno čišćenje unosa
     clean_job_desc = sanitize_input(dossier_req.job_description)
     profile_data = sanitize_dossier(dossier_req.user_dossier) if dossier_req.user_dossier else DEFAULT_MASTER_DOSSIER
     
-    # 2. AI Logika
+    # ensure_ascii=False osigurava da AI model pravilno vidi naša slova (š, đ, ž, ć, č)
+    json_dossier = json.dumps(profile_data, ensure_ascii=False)
+    
     if lang == "sr":
-        sys_msg = "Ti si profesionalni pisac CV-ja na srpskom jeziku (isključivo EKAVICA)."
+        sys_msg = """Ti si inženjer za optimizaciju CV-ja (ATS sistemi).
+        TVOJ JEDINI ZADATAK JE DA PREFORMULIŠEŠ SADRŽAJ I STROGO GA UPAKUJEŠ U ZADATI ŠABLON.
+        STROGA PRAVILA:
+        1. KREATIVNOST U STRUKTURI JE ZABRANJENA.
+        2. BEZ KONTAKT PODATAKA (ime, email, telefon).
+        3. ISKLJUČIVO EKAVICA. Nema ijekavice.
+        4. Rezime piši u skrivenom prvom licu."""
+        
         user_prompt = f"""
-        Prilagodi ovaj dosije: {json.dumps(profile_data)} 
-        oglasu za posao: {clean_job_desc}.
-        STRIKTNA PRAVILA:
-        1. Koristi isključivo EKAVICU (uspešno, rešenje, vreme).
-        2. Zabranjena IJEKAVICA (uspješno, rješenje, vrijeme).
-        3. Fokusiraj se na inženjersku automatizaciju i rezultate.
+        Dosije: {json_dossier}
+        Oglas: {clean_job_desc}
+        
+        ZADATAK:
+        Preformuliši radno iskustvo i rezime. Ispiši sadržaj STROGO koristeći ovaj format:
+
+        PROFESIONALNI REZIME
+        [Snažan rezime u 3 rečenice prilagođen oglasu]
+
+        VEŠTINE
+        [Lista ključnih veština odvojenih zarezima, izvučenih iz dosijea]
+
+        RADNO ISKUSTVO
+        [Pozicija iz dosijea] | [Kompanija iz dosijea] | [Period iz dosijea]
+        • [Akcioni bullet poen prilagođen oglasu]
+        • [Akcioni bullet poen prilagođen oglasu]
+        
+        VAŽNO ZA ISKUSTVO: MORAŠ navesti SVA radna iskustva iz dosijea kako bi se sačuvao hronološki red! Za relevantne poslove napiši 2-3 bullet poena. Za starije ili nerelevantne poslove ispiši SAMO naslovnu liniju (Pozicija | Firma | Period) i izostavi bullet poene.
+
+        OBRAZOVANJE
+        • [Stepen obrazovanja/Diploma], [Škola] ([Godina])
+
+        SERTIFIKATI
+        • [Naziv sertifikata] ([Godina])
         """
     else:
-        sys_msg = "You are a professional English Resume Writer."
-        user_prompt = f"Tailor this dossier: {json.dumps(profile_data)} to this job: {clean_job_desc}."
+        sys_msg = """You are an elite ATS-Optimization Engineer.
+        YOUR ONLY JOB IS TO TRANSLATE, TAILOR THE CONTENT, AND STRICTLY PACK IT INTO THE TEMPLATE.
+        STRICT RULES:
+        1. TRANSLATE EVERYTHING TO ENGLISH (Job titles, skills, degrees, etc.).
+        2. STRUCTURAL CREATIVITY IS FORBIDDEN.
+        3. NO CONTACT INFO.
+        4. First-person professional summary."""
+        
+        user_prompt = f"""
+        Dossier: {json_dossier}
+        Job: {clean_job_desc}
+        
+        TASK:
+        Translate the dossier to English and tailor the candidate's experience. Output the result STRICTLY using the exact format below (copy ALL-CAPS headers):
+
+        PROFESSIONAL SUMMARY
+        [3 impactful sentences tailored to the job in English]
+
+        SKILLS
+        [Comma-separated list of translated, relevant skills in English]
+
+        WORK EXPERIENCE
+        [Translated Job Title] | [Company] | [Period]
+        • [Action-oriented bullet point targeting JD keywords in English]
+        • [Action-oriented bullet point targeting JD keywords in English]
+
+        CRITICAL FOR EXPERIENCE: You MUST list EVERY job from the dossier to keep the chronological timeline intact. Do not skip any jobs! For relevant roles, provide 2-3 tailored bullets. For older or irrelevant roles, just list the Title, Company, and Period with NO bullets.
+
+        EDUCATION
+        • [Translated Degree], [School] ([Year])
+
+        CERTIFICATIONS
+        • [Translated Certificate Name] ([Year])
+        """
 
     try:
         completion = client.chat.completions.create(
@@ -317,7 +539,6 @@ async def generate_pdf(request: Request, dossier_req: FullDossierRequest, lang: 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
-    # 3. PDF Generisanje
     try:
         pdf = FPDF()
         pdf.add_page()
@@ -327,48 +548,139 @@ async def generate_pdf(request: Request, dossier_req: FullDossierRequest, lang: 
             
         pdf.add_font('ArialUni', '', FONT_PATH, uni=True)
         
-        # Header/Branding
-        pdf.set_font('ArialUni', size=20)
-        pdf.set_text_color(26, 28, 30)
-        pdf.cell(0, 15, profile_data.get("full_name", "CVespresso User"), ln=True, align='L')
+        # Generiši zaglavlje
+        create_pdf_header(pdf, profile_data)
         
-        pdf.set_font('ArialUni', size=10)
-        pdf.set_text_color(100, 100, 100)
-        pdf.cell(0, 5, "Generated via CVespresso | Production Hub 2026", ln=True, align='L')
+        # --- NOVI RENDERER (Estetika i ATS forma) ---
+        clean_pdf_text = tailored_text.replace('#', '').replace('**', '').replace('* ', '• ')
         
-        pdf.set_draw_color(200, 200, 200)
-        pdf.line(10, 35, 200, 35)
-        pdf.ln(15)
+        # Ključne reči koje okidaju crtanje naslova i linija
+        headers = [
+            "PROFESIONALNI REZIME", "VEŠTINE", "RADNO ISKUSTVO", "OBRAZOVANJE", "SERTIFIKATI",
+            "PROFESSIONAL SUMMARY", "SKILLS", "WORK EXPERIENCE", "EDUCATION", "CERTIFICATIONS"
+        ]
 
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font('ArialUni', size=11)
+        for line in clean_pdf_text.split('\n'):
+            line = line.strip()
+            if not line:
+                pdf.ln(2) # Mali razmak za prazne redove
+                continue
+            
+            upper_line = line.upper()
+            
+            # 1. AKO JE NASLOV SEKCIJE
+            if any(h in upper_line for h in headers) and len(line) < 30:
+                pdf.ln(6)
+                pdf.set_font('ArialUni', size=11)
+                pdf.set_text_color(0, 0, 0) # Crna
+                pdf.cell(0, 6, upper_line, ln=True)
+                
+                # Crtanje horizontalne razdelne linije
+                current_y = pdf.get_y()
+                pdf.set_draw_color(100, 100, 100) # Siva linija
+                pdf.line(10, current_y, 200, current_y)
+                pdf.ln(3)
+                
+            # 2. AKO JE PODNASLOV ZA POSAO (Pozicija | Firma | Datum)
+            elif "|" in line and "•" not in line:
+                pdf.set_font('ArialUni', size=10)
+                pdf.set_text_color(0, 0, 0) # Crna, naglašena
+                pdf.cell(0, 7, line, ln=True)
+                
+            # 3. AKO SU BULLET POENI (ili obrazovanje/sertifikati)
+            elif line.startswith("•") or line.startswith("-"):
+                pdf.set_font('ArialUni', size=9)
+                pdf.set_text_color(50, 50, 50) # Tamno siva za lepši kontrast
+                pdf.set_x(14) # Uvlačenje teksta udesno
+                pdf.multi_cell(0, 5, line)
+                pdf.set_x(10) # Vraćanje margine
+                
+            # 4. OBIČAN TEKST (Rezime, Veštine)
+            else:
+                pdf.set_font('ArialUni', size=9)
+                pdf.set_text_color(50, 50, 50)
+                pdf.multi_cell(0, 5, line)
+        temp_dir = tempfile.gettempdir()
+        unique_id = uuid.uuid4().hex
+        safe_file_path = os.path.join(temp_dir, f"CVespresso_{unique_id}_{lang}.pdf")
         
-        # Čišćenje Markdown-a
-        clean_pdf_text = tailored_text.replace('### ', '').replace('**', '').replace('* ', '• ')
-        pdf.multi_cell(0, 7, clean_pdf_text)
+        pdf.output(safe_file_path)
         
-        output_filename = f"CVespresso_{lang}.pdf"
-        pdf.output(output_filename)
+        # Zakaži automatsko brisanje fajla u pozadini nakon slanja responsa
+        background_tasks.add_task(remove_temp_file, safe_file_path)
         
-        return FileResponse(path=output_filename, filename=output_filename, media_type='application/pdf')
+        return FileResponse(
+            path=safe_file_path, 
+            filename=f"CVespresso_{lang}.pdf", 
+            media_type='application/pdf'
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF Error: {str(e)}")
 
+
 @app.post("/generate-cover-letter/")
-@limiter.limit("5/minute") # Ograničenje i za propratno pismo
-async def generate_cover_letter(request: Request, dossier_req: FullDossierRequest, lang: str = Query("sr", enum=["sr", "en"])):
+@limiter.limit("5/minute")
+async def generate_cover_letter(request: Request, dossier_req: FullDossierRequest, background_tasks: BackgroundTasks, lang: str = Query("sr", enum=["sr", "en"])):
     """Generiše propratno pismo prilagođeno poziciji"""
     
     clean_job_desc = sanitize_input(dossier_req.job_description)
     profile_data = sanitize_dossier(dossier_req.user_dossier) if dossier_req.user_dossier else DEFAULT_MASTER_DOSSIER
     
+    json_dossier = json.dumps(profile_data, ensure_ascii=False)
+    
     if lang == "sr":
-        sys_msg = "Ti si HR menadžer koji piše ubedljiva propratna pisma (EKAVICA)."
-        user_prompt = f"Napiši pismo za profil {json.dumps(profile_data)} i oglas {clean_job_desc}. Samo ekavica."
+        sys_msg = """Ti si vrhunski HR stručnjak za pisanje propratnih pisama (Cover Letters).
+        TVOJ JEDINI ZADATAK JE DA NAPIŠEŠ ČIST TEKST PISMA. BEZ IKAKVOG UVODA ILI OBJAŠNJENJA PRE PISMA.
+        STROGA PRAVILA:
+        1. BEZ KONTAKT PODATAKA I DATUMA na vrhu (sistem to sam dodaje).
+        2. ISKLJUČIVO EKAVICA. Nema ijekavice.
+        3. Pismo mora biti koncizno, profesionalno i uverljivo."""
+        
+        user_prompt = f"""
+        Dosije: {json_dossier}
+        Oglas: {clean_job_desc}
+        
+        ZADATAK:
+        Napiši propratno pismo prateći ISKLJUČIVO ovu formu:
+
+        Poštovani/a [Ime iz oglasa ili 'Timu za zapošljavanje' ako nema imena],
+
+        [Uvod: Jasno navedi za koju poziciju apliciraš i zašto si idealan kandidat za kompaniju.]
+
+        [Razrada: U 1-2 kratka pasusa poveži 2-3 ključna dostignuća ili veštine iz dosijea sa najvažnijim zahtevima iz oglasa. Pokaži konkretnu vrednost koju donosiš.]
+
+        [Zaključak: Kratak poziv na akciju/intervju i zahvalnost na izdvojenom vremenu.]
+
+        Srdačan pozdrav,
+        [Puno Ime kandidata iz dosijea]
+        """
     else:
-        sys_msg = "You are a professional career coach writing a cover letter."
-        user_prompt = f"Write a cover letter for {json.dumps(profile_data)} regarding {clean_job_desc}."
+        sys_msg = """You are an elite Executive Career Coach specializing in Cover Letters.
+        YOUR ONLY JOB IS TO WRITE THE CORE LETTER TEXT. NO INTRODUCTIONS, NO CHAT.
+        STRICT RULES:
+        1. TRANSLATE ALL RELEVANT CONTENT TO ENGLISH based on the dossier.
+        2. NO CONTACT INFO OR DATES at the top (the system adds this automatically).
+        3. The letter must be concise, confident, and highly tailored."""
+        
+        user_prompt = f"""
+        Dossier: {json_dossier}
+        Job: {clean_job_desc}
+        
+        TASK:
+        Write a cover letter translating the candidate's background to English. STRICTLY use this format:
+
+        Dear [Hiring Manager Name if in JD, otherwise 'Hiring Team'],
+
+        [Opening: State the position you are applying for and a strong hook about why you are a great fit.]
+
+        [Body: In 1-2 concise paragraphs, connect 2-3 key achievements or skills from the dossier to the most critical requirements in the job description. Show measurable impact.]
+
+        [Conclusion: A brief call to action for an interview and gratitude for their time.]
+
+        Sincerely,
+        [Candidate's Full Name from dossier]
+        """
 
     try:
         completion = client.chat.completions.create(
@@ -384,12 +696,26 @@ async def generate_cover_letter(request: Request, dossier_req: FullDossierReques
         pdf = FPDF()
         pdf.add_page()
         pdf.add_font('ArialUni', '', FONT_PATH, uni=True)
-        pdf.set_font('ArialUni', size=11)
+        
+        # Generiši ISTE kontakt podatke u zaglavlju i za Cover Letter
+        create_pdf_header(pdf, profile_data)
+        
         pdf.multi_cell(0, 7, cl_text.replace('**', ''))
         
-        output_filename = f"Cover_Letter_{lang}.pdf"
-        pdf.output(output_filename)
-        return FileResponse(output_filename, filename=output_filename, media_type='application/pdf')
+        temp_dir = tempfile.gettempdir()
+        unique_id = uuid.uuid4().hex
+        safe_file_path = os.path.join(temp_dir, f"CoverLetter_{unique_id}_{lang}.pdf")
+        
+        pdf.output(safe_file_path)
+        
+        # Zakaži automatsko brisanje
+        background_tasks.add_task(remove_temp_file, safe_file_path)
+        
+        return FileResponse(
+            path=safe_file_path, 
+            filename=f"Cover_Letter_{lang}.pdf", 
+            media_type='application/pdf'
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -452,33 +778,70 @@ END OF FILE: api\templates\cv_template.html
 START OF FILE: static\manifest.json
 --------------------
 {
-  "name": "Bojan CV AI Builder",
-  "short_name": "BojanCV",
-  "description": "AI generator CV-ja i propratnih pisama za Bojana Pejića",
+  "name": "CVespresso",
+  "short_name": "CVespresso",
+  "description": "AI alat za generisanje ATS-optimizovanih CV-jeva i propratnih pisama.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f3f4f6",
-  "theme_color": "#004d99",
+  "background_color": "#111827",
+  "theme_color": "#111827",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/942/942799.png",
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
 --------------------
 END OF FILE: static\manifest.json
 
+START OF FILE: static\sw.js
+--------------------
+const CACHE_NAME = 'cvespresso-cache-v1';
+const urlsToCache = [
+  '/',
+  '/static/css/tailwind-output.css',
+  '/static/js/main.js',
+  '/static/js/api.js',
+  '/static/js/auth.js',
+  '/static/js/dossier.js'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+  );
+});
+--------------------
+END OF FILE: static\sw.js
+
 START OF FILE: static\css\style.css
 --------------------
-/* Tvoja inženjerska OKLCH paleta */
+@import "tailwindcss";
+@source "../../index.html";
+@source "../js/**/*.js";
+@source "../../api/templates/**/*.html";
+
+/* OKLCH paleta */
 :root {
-    --bg: oklch(0.99 0 0);
-    --border: oklch(0.92 0 0);
-    --border-hover: oklch(0.14 0 0);
-    --footer: oklch(0.85 0 0);
+    --bg: oklch(0.97 0.01 75); /* Topla, prigušena bela - ne zamara oči */
+    --border: oklch(0.88 0.01 75); /* Prilagođena ivica uz novu pozadinu */
+    --border-hover: oklch(0.20 0.02 75); /* Mekša crna za tekst i hover */
+    --footer: oklch(0.80 0.01 75);
 }
 
 .dark {
@@ -495,14 +858,15 @@ body {
 
 .btn-espresso {
     background-color: transparent;
-    border: 1px solid var(--border);
+    border: 2px solid var(--border); /* Podebljano sa 1px na 2px */
     color: var(--border-hover);
-    transition: all 0.3s ease;
+    transition: all 0.4s ease; /* Usporeno za glatkiji, zen prelaz */
 }
 
 .btn-espresso:hover {
     border-color: var(--border-hover);
-    border-width: 1.5px;
+    /* Suptilni glow efekat pri prelasku miša (20% vidljivosti boje teksta) */
+    box-shadow: 0 0 20px color-mix(in oklch, var(--border-hover) 20%, transparent);
 }
 
 .icon-toggle { 
@@ -522,9 +886,19 @@ textarea {
     color: inherit; 
 }
 
+/* --- GLAVNI UNOS (JOB SPECS) --- */
+textarea { 
+    background-color: transparent; 
+    border: 2px solid var(--border); /* Podebljano na 2px */
+    color: inherit; 
+    transition: all 0.4s ease; /* Dodata glatka tranzicija */
+}
+
 textarea:focus { 
     border-color: var(--border-hover); 
     outline: none; 
+    /* Razliveni, duboki glow kada se klikne na polje (15% vidljivosti) */
+    box-shadow: 0 0 25px color-mix(in oklch, var(--border-hover) 15%, transparent);
 }
 
 footer { color: var(--footer); }
@@ -544,526 +918,1570 @@ footer { color: var(--footer); }
     overflow-y: auto;
 }
 
+/* --- MASTER DOSIJE FORMA --- */
 .dossier-input {
     width: 100%;
     padding: 1rem;
     background-color: transparent;
-    border: 1px solid var(--border);
+    border: 2px solid var(--border); /* Podebljano na 2px */
     border-radius: 0.5rem;
     font-size: 0.875rem;
     outline: none;
-    transition: border-color 0.3s;
+    transition: all 0.4s ease;
 }
 
 .dossier-input:focus {
     border-color: var(--border-hover);
+    /* Malo manji glow za manja polja u dosijeu */
+    box-shadow: 0 0 15px color-mix(in oklch, var(--border-hover) 15%, transparent);
+}
+
+.hidden { 
+    display: none !important; 
 }
 --------------------
 END OF FILE: static\css\style.css
 
 START OF FILE: static\css\tailwind-output.css
 --------------------
-/* Tvoja inženjerska OKLCH paleta */
-:root {
-    --bg: oklch(0.99 0 0);
-    --border: oklch(0.92 0 0);
-    --border-hover: oklch(0.14 0 0);
-    --footer: oklch(0.85 0 0);
+/*! tailwindcss v4.2.1 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+    --color-red-500: oklch(63.7% 0.237 25.331);
+    --color-red-900: oklch(39.6% 0.141 25.723);
+    --color-green-500: oklch(72.3% 0.219 149.579);
+    --color-blue-500: oklch(62.3% 0.214 259.815);
+    --color-gray-400: oklch(70.7% 0.022 261.325);
+    --color-black: #000;
+    --color-white: #fff;
+    --spacing: 0.25rem;
+    --container-lg: 32rem;
+    --container-2xl: 42rem;
+    --container-4xl: 56rem;
+    --text-xs: 0.75rem;
+    --text-xs--line-height: calc(1 / 0.75);
+    --text-sm: 0.875rem;
+    --text-sm--line-height: calc(1.25 / 0.875);
+    --text-xl: 1.25rem;
+    --text-xl--line-height: calc(1.75 / 1.25);
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: calc(2.25 / 1.875);
+    --font-weight-bold: 700;
+    --font-weight-black: 900;
+    --tracking-tighter: -0.05em;
+    --tracking-wider: 0.05em;
+    --tracking-widest: 0.1em;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --default-transition-duration: 150ms;
+    --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+  }
 }
-
-.dark {
-    --bg: oklch(0.25 0.02 240);
-    --border: oklch(0.35 0.02 240);
-    --border-hover: oklch(0.99 0 0);
-    --footer: oklch(0.30 0.02 240);
-}
-
-body { 
-    background-color: var(--bg); 
-    color: var(--border-hover); 
-}
-
-.btn-espresso {
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji');
+    font-feature-settings: var(--default-font-feature-settings, normal);
+    font-variation-settings: var(--default-font-variation-settings, normal);
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
     background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--border-hover);
-    transition: all 0.3s ease;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type='button'], [type='reset'], [type='submit']), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden='until-found'])) {
+    display: none !important;
+  }
 }
-
-.btn-espresso:hover {
-    border-color: var(--border-hover);
-    border-width: 1.5px;
-}
-
-.icon-toggle { 
-    width: 20px; 
-    height: 20px; 
-    stroke: currentColor; 
-    fill: none; 
-    opacity: 0.4; 
-    transition: opacity 0.3s; 
-}
-
-.icon-toggle:hover { opacity: 1; }
-
-textarea { 
-    background-color: transparent; 
-    border: 1px solid var(--border); 
-    color: inherit; 
-}
-
-textarea:focus { 
-    border-color: var(--border-hover); 
-    outline: none; 
-}
-
-footer { color: var(--footer); }
-
-/* Font Setup za Tailwind */
-.font-cursive { font-family: 'Satisfy', cursive; }
-
-/* Editor overlay */
-#dossierEditor {
+@layer utilities {
+  .absolute {
+    position: absolute;
+  }
+  .fixed {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg);
+  }
+  .relative {
+    position: relative;
+  }
+  .static {
+    position: static;
+  }
+  .inset-0 {
+    inset: calc(var(--spacing) * 0);
+  }
+  .-top-2 {
+    top: calc(var(--spacing) * -2);
+  }
+  .top-0 {
+    top: calc(var(--spacing) * 0);
+  }
+  .top-2 {
+    top: calc(var(--spacing) * 2);
+  }
+  .top-4 {
+    top: calc(var(--spacing) * 4);
+  }
+  .-right-2 {
+    right: calc(var(--spacing) * -2);
+  }
+  .right-2 {
+    right: calc(var(--spacing) * 2);
+  }
+  .right-6 {
+    right: calc(var(--spacing) * 6);
+  }
+  .left-0 {
+    left: calc(var(--spacing) * 0);
+  }
+  .z-10 {
+    z-index: 10;
+  }
+  .z-50 {
+    z-index: 50;
+  }
+  .z-\[100\] {
     z-index: 100;
-    overflow-y: auto;
-}
-
-.dossier-input {
+  }
+  .z-\[105\] {
+    z-index: 105;
+  }
+  .z-\[110\] {
+    z-index: 110;
+  }
+  .z-\[120\] {
+    z-index: 120;
+  }
+  .z-\[150\] {
+    z-index: 150;
+  }
+  .container {
     width: 100%;
-    padding: 1rem;
+    @media (width >= 40rem) {
+      max-width: 40rem;
+    }
+    @media (width >= 48rem) {
+      max-width: 48rem;
+    }
+    @media (width >= 64rem) {
+      max-width: 64rem;
+    }
+    @media (width >= 80rem) {
+      max-width: 80rem;
+    }
+    @media (width >= 96rem) {
+      max-width: 96rem;
+    }
+  }
+  .m-4 {
+    margin: calc(var(--spacing) * 4);
+  }
+  .mx-4 {
+    margin-inline: calc(var(--spacing) * 4);
+  }
+  .mx-auto {
+    margin-inline: auto;
+  }
+  .mt-3 {
+    margin-top: calc(var(--spacing) * 3);
+  }
+  .mt-10 {
+    margin-top: calc(var(--spacing) * 10);
+  }
+  .mt-12 {
+    margin-top: calc(var(--spacing) * 12);
+  }
+  .mt-auto {
+    margin-top: auto;
+  }
+  .mb-1 {
+    margin-bottom: calc(var(--spacing) * 1);
+  }
+  .mb-2 {
+    margin-bottom: calc(var(--spacing) * 2);
+  }
+  .mb-3 {
+    margin-bottom: calc(var(--spacing) * 3);
+  }
+  .mb-6 {
+    margin-bottom: calc(var(--spacing) * 6);
+  }
+  .mb-12 {
+    margin-bottom: calc(var(--spacing) * 12);
+  }
+  .mb-16 {
+    margin-bottom: calc(var(--spacing) * 16);
+  }
+  .block {
+    display: block;
+  }
+  .flex {
+    display: flex;
+  }
+  .grid {
+    display: grid;
+  }
+  .hidden {
+    display: none;
+  }
+  .h-4 {
+    height: calc(var(--spacing) * 4);
+  }
+  .h-5 {
+    height: calc(var(--spacing) * 5);
+  }
+  .h-6 {
+    height: calc(var(--spacing) * 6);
+  }
+  .h-20 {
+    height: calc(var(--spacing) * 20);
+  }
+  .h-24 {
+    height: calc(var(--spacing) * 24);
+  }
+  .h-\[90vh\] {
+    height: 90vh;
+  }
+  .h-full {
+    height: 100%;
+  }
+  .min-h-screen {
+    min-height: 100vh;
+  }
+  .w-4 {
+    width: calc(var(--spacing) * 4);
+  }
+  .w-5 {
+    width: calc(var(--spacing) * 5);
+  }
+  .w-6 {
+    width: calc(var(--spacing) * 6);
+  }
+  .w-20 {
+    width: calc(var(--spacing) * 20);
+  }
+  .w-24 {
+    width: calc(var(--spacing) * 24);
+  }
+  .w-80 {
+    width: calc(var(--spacing) * 80);
+  }
+  .w-full {
+    width: 100%;
+  }
+  .max-w-2xl {
+    max-width: var(--container-2xl);
+  }
+  .max-w-4xl {
+    max-width: var(--container-4xl);
+  }
+  .max-w-lg {
+    max-width: var(--container-lg);
+  }
+  .flex-1 {
+    flex: 1;
+  }
+  .flex-grow {
+    flex-grow: 1;
+  }
+  .-translate-x-full {
+    --tw-translate-x: -100%;
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
+  .scale-95 {
+    --tw-scale-x: 95%;
+    --tw-scale-y: 95%;
+    --tw-scale-z: 95%;
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+  .transform {
+    transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+  }
+  .resize-none {
+    resize: none;
+  }
+  .grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .items-baseline {
+    align-items: baseline;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .justify-between {
+    justify-content: space-between;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .gap-1 {
+    gap: calc(var(--spacing) * 1);
+  }
+  .gap-2 {
+    gap: calc(var(--spacing) * 2);
+  }
+  .gap-3 {
+    gap: calc(var(--spacing) * 3);
+  }
+  .gap-4 {
+    gap: calc(var(--spacing) * 4);
+  }
+  .gap-6 {
+    gap: calc(var(--spacing) * 6);
+  }
+  .gap-8 {
+    gap: calc(var(--spacing) * 8);
+  }
+  .space-y-3 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 3) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 3) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .space-y-4 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 4) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 4) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .space-y-6 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 6) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 6) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .space-y-8 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 8) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 8) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .space-y-10 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 10) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 10) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .space-y-12 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 12) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 12) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .overflow-hidden {
+    overflow: hidden;
+  }
+  .overflow-y-auto {
+    overflow-y: auto;
+  }
+  .rounded {
+    border-radius: 0.25rem;
+  }
+  .rounded-2xl {
+    border-radius: var(--radius-2xl);
+  }
+  .rounded-full {
+    border-radius: calc(infinity * 1px);
+  }
+  .rounded-lg {
+    border-radius: var(--radius-lg);
+  }
+  .rounded-xl {
+    border-radius: var(--radius-xl);
+  }
+  .border {
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+  }
+  .border-t {
+    border-top-style: var(--tw-border-style);
+    border-top-width: 1px;
+  }
+  .border-r {
+    border-right-style: var(--tw-border-style);
+    border-right-width: 1px;
+  }
+  .border-b {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
+  }
+  .border-\[var\(--border\)\] {
+    border-color: var(--border);
+  }
+  .border-green-500\/50 {
+    border-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-green-500) 50%, transparent);
+    }
+  }
+  .border-red-900\/20 {
+    border-color: color-mix(in srgb, oklch(39.6% 0.141 25.723) 20%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-red-900) 20%, transparent);
+    }
+  }
+  .bg-\[var\(--bg\)\] {
+    background-color: var(--bg);
+  }
+  .bg-black\/50 {
+    background-color: color-mix(in srgb, #000 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-black) 50%, transparent);
+    }
+  }
+  .bg-black\/80 {
+    background-color: color-mix(in srgb, #000 80%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-black) 80%, transparent);
+    }
+  }
+  .bg-red-500 {
+    background-color: var(--color-red-500);
+  }
+  .bg-transparent {
     background-color: transparent;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    outline: none;
-    transition: border-color 0.3s;
+  }
+  .bg-white {
+    background-color: var(--color-white);
+  }
+  .stroke-\[var\(--border-hover\)\] {
+    stroke: var(--border-hover);
+  }
+  .p-1\.5 {
+    padding: calc(var(--spacing) * 1.5);
+  }
+  .p-2 {
+    padding: calc(var(--spacing) * 2);
+  }
+  .p-4 {
+    padding: calc(var(--spacing) * 4);
+  }
+  .p-6 {
+    padding: calc(var(--spacing) * 6);
+  }
+  .p-8 {
+    padding: calc(var(--spacing) * 8);
+  }
+  .px-2 {
+    padding-inline: calc(var(--spacing) * 2);
+  }
+  .px-4 {
+    padding-inline: calc(var(--spacing) * 4);
+  }
+  .py-2 {
+    padding-block: calc(var(--spacing) * 2);
+  }
+  .py-3 {
+    padding-block: calc(var(--spacing) * 3);
+  }
+  .py-4 {
+    padding-block: calc(var(--spacing) * 4);
+  }
+  .py-6 {
+    padding-block: calc(var(--spacing) * 6);
+  }
+  .py-12 {
+    padding-block: calc(var(--spacing) * 12);
+  }
+  .pr-6 {
+    padding-right: calc(var(--spacing) * 6);
+  }
+  .pr-8 {
+    padding-right: calc(var(--spacing) * 8);
+  }
+  .pb-2 {
+    padding-bottom: calc(var(--spacing) * 2);
+  }
+  .pb-4 {
+    padding-bottom: calc(var(--spacing) * 4);
+  }
+  .pb-6 {
+    padding-bottom: calc(var(--spacing) * 6);
+  }
+  .pb-20 {
+    padding-bottom: calc(var(--spacing) * 20);
+  }
+  .text-center {
+    text-align: center;
+  }
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+  .text-2xl {
+    font-size: var(--text-2xl);
+    line-height: var(--tw-leading, var(--text-2xl--line-height));
+  }
+  .text-3xl {
+    font-size: var(--text-3xl);
+    line-height: var(--tw-leading, var(--text-3xl--line-height));
+  }
+  .text-sm {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+  }
+  .text-xl {
+    font-size: var(--text-xl);
+    line-height: var(--tw-leading, var(--text-xl--line-height));
+  }
+  .text-xs {
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+  }
+  .text-\[8px\] {
+    font-size: 8px;
+  }
+  .text-\[9px\] {
+    font-size: 9px;
+  }
+  .text-\[10px\] {
+    font-size: 10px;
+  }
+  .font-black {
+    --tw-font-weight: var(--font-weight-black);
+    font-weight: var(--font-weight-black);
+  }
+  .font-bold {
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+  }
+  .tracking-\[0\.2em\] {
+    --tw-tracking: 0.2em;
+    letter-spacing: 0.2em;
+  }
+  .tracking-\[0\.3em\] {
+    --tw-tracking: 0.3em;
+    letter-spacing: 0.3em;
+  }
+  .tracking-\[0\.4em\] {
+    --tw-tracking: 0.4em;
+    letter-spacing: 0.4em;
+  }
+  .tracking-\[0\.5em\] {
+    --tw-tracking: 0.5em;
+    letter-spacing: 0.5em;
+  }
+  .tracking-\[0\.6em\] {
+    --tw-tracking: 0.6em;
+    letter-spacing: 0.6em;
+  }
+  .tracking-tighter {
+    --tw-tracking: var(--tracking-tighter);
+    letter-spacing: var(--tracking-tighter);
+  }
+  .tracking-wider {
+    --tw-tracking: var(--tracking-wider);
+    letter-spacing: var(--tracking-wider);
+  }
+  .tracking-widest {
+    --tw-tracking: var(--tracking-widest);
+    letter-spacing: var(--tracking-widest);
+  }
+  .text-\[var\(--border-hover\)\] {
+    color: var(--border-hover);
+  }
+  .text-\[var\(--text\)\] {
+    color: var(--text);
+  }
+  .text-blue-500 {
+    color: var(--color-blue-500);
+  }
+  .text-green-500 {
+    color: var(--color-green-500);
+  }
+  .text-red-500 {
+    color: var(--color-red-500);
+  }
+  .text-red-500\/50 {
+    color: color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-red-500) 50%, transparent);
+    }
+  }
+  .text-white {
+    color: var(--color-white);
+  }
+  .lowercase {
+    text-transform: lowercase;
+  }
+  .uppercase {
+    text-transform: uppercase;
+  }
+  .opacity-0 {
+    opacity: 0%;
+  }
+  .opacity-20 {
+    opacity: 20%;
+  }
+  .opacity-30 {
+    opacity: 30%;
+  }
+  .opacity-40 {
+    opacity: 40%;
+  }
+  .opacity-50 {
+    opacity: 50%;
+  }
+  .opacity-80 {
+    opacity: 80%;
+  }
+  .shadow-2xl {
+    --tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.25));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow-inner {
+    --tw-shadow: inset 0 2px 4px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.05));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow-md {
+    --tw-shadow: 0 4px 6px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 2px 4px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow-sm {
+    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .outline {
+    outline-style: var(--tw-outline-style);
+    outline-width: 1px;
+  }
+  .transition {
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .transition-all {
+    transition-property: all;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .transition-colors {
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .transition-opacity {
+    transition-property: opacity;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .transition-transform {
+    transition-property: transform, translate, scale, rotate;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .duration-300 {
+    --tw-duration: 300ms;
+    transition-duration: 300ms;
+  }
+  .duration-500 {
+    --tw-duration: 500ms;
+    transition-duration: 500ms;
+  }
+  .ease-in-out {
+    --tw-ease: var(--ease-in-out);
+    transition-timing-function: var(--ease-in-out);
+  }
+  .select-none {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .group-hover\:opacity-100 {
+    &:is(:where(.group):hover *) {
+      @media (hover: hover) {
+        opacity: 100%;
+      }
+    }
+  }
+  .placeholder\:opacity-20 {
+    &::placeholder {
+      opacity: 20%;
+    }
+  }
+  .hover\:border-\[var\(--border-hover\)\] {
+    &:hover {
+      @media (hover: hover) {
+        border-color: var(--border-hover);
+      }
+    }
+  }
+  .hover\:border-gray-400 {
+    &:hover {
+      @media (hover: hover) {
+        border-color: var(--color-gray-400);
+      }
+    }
+  }
+  .hover\:bg-green-500\/10 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 10%, transparent);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-green-500) 10%, transparent);
+        }
+      }
+    }
+  }
+  .hover\:bg-red-500\/10 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: color-mix(in srgb, oklch(63.7% 0.237 25.331) 10%, transparent);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-red-500) 10%, transparent);
+        }
+      }
+    }
+  }
+  .hover\:text-red-500 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-red-500);
+      }
+    }
+  }
+  .hover\:text-white {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-white);
+      }
+    }
+  }
+  .hover\:opacity-100 {
+    &:hover {
+      @media (hover: hover) {
+        opacity: 100%;
+      }
+    }
+  }
+  .focus\:outline-none {
+    &:focus {
+      --tw-outline-style: none;
+      outline-style: none;
+    }
+  }
+  .md\:w-1\/5 {
+    @media (width >= 48rem) {
+      width: calc(1 / 5 * 100%);
+    }
+  }
+  .md\:w-2\/5 {
+    @media (width >= 48rem) {
+      width: calc(2 / 5 * 100%);
+    }
+  }
+  .md\:grid-cols-2 {
+    @media (width >= 48rem) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .md\:grid-cols-3 {
+    @media (width >= 48rem) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .md\:flex-row {
+    @media (width >= 48rem) {
+      flex-direction: row;
+    }
+  }
+  .md\:p-20 {
+    @media (width >= 48rem) {
+      padding: calc(var(--spacing) * 20);
+    }
+  }
+}
+:root {
+  --bg: oklch(0.97 0.01 75);
+  --border: oklch(0.88 0.01 75);
+  --border-hover: oklch(0.20 0.02 75);
+  --footer: oklch(0.80 0.01 75);
+}
+.dark {
+  --bg: oklch(0.25 0.02 240);
+  --border: oklch(0.35 0.02 240);
+  --border-hover: oklch(0.99 0 0);
+  --footer: oklch(0.30 0.02 240);
+}
+body {
+  background-color: var(--bg);
+  color: var(--border-hover);
+}
+.btn-espresso {
+  background-color: transparent;
+  border: 2px solid var(--border);
+  color: var(--border-hover);
+  transition: all 0.4s ease;
+}
+.btn-espresso:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 0 20px var(--border-hover);
+  @supports (color: color-mix(in lab, red, red)) {
+    box-shadow: 0 0 20px color-mix(in oklch, var(--border-hover) 20%, transparent);
+  }
+}
+.icon-toggle {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+}
+.icon-toggle:hover {
+  opacity: 1;
+}
+textarea {
+  background-color: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+}
+textarea {
+  background-color: transparent;
+  border: 2px solid var(--border);
+  color: inherit;
+  transition: all 0.4s ease;
+}
+textarea:focus {
+  border-color: var(--border-hover);
+  outline: none;
+  box-shadow: 0 0 25px var(--border-hover);
+  @supports (color: color-mix(in lab, red, red)) {
+    box-shadow: 0 0 25px color-mix(in oklch, var(--border-hover) 15%, transparent);
+  }
+}
+footer {
+  color: var(--footer);
+}
+.font-cursive {
+  font-family: 'Satisfy', cursive;
+}
+#dossierEditor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg);
+  z-index: 100;
+  overflow-y: auto;
+}
+.dossier-input {
+  width: 100%;
+  padding: 1rem;
+  background-color: transparent;
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.4s ease;
+}
+.dossier-input:focus {
+  border-color: var(--border-hover);
+  box-shadow: 0 0 15px var(--border-hover);
+  @supports (color: color-mix(in lab, red, red)) {
+    box-shadow: 0 0 15px color-mix(in oklch, var(--border-hover) 15%, transparent);
+  }
+}
+.hidden {
+  display: none !important;
+}
+@property --tw-translate-x {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-translate-y {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-translate-z {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-scale-x {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-scale-y {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-scale-z {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-rotate-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-z {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-space-y-reverse {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-outline-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-duration {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ease {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-translate-x: 0;
+      --tw-translate-y: 0;
+      --tw-translate-z: 0;
+      --tw-scale-x: 1;
+      --tw-scale-y: 1;
+      --tw-scale-z: 1;
+      --tw-rotate-x: initial;
+      --tw-rotate-y: initial;
+      --tw-rotate-z: initial;
+      --tw-skew-x: initial;
+      --tw-skew-y: initial;
+      --tw-space-y-reverse: 0;
+      --tw-border-style: solid;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+      --tw-shadow: 0 0 #0000;
+      --tw-shadow-color: initial;
+      --tw-shadow-alpha: 100%;
+      --tw-inset-shadow: 0 0 #0000;
+      --tw-inset-shadow-color: initial;
+      --tw-inset-shadow-alpha: 100%;
+      --tw-ring-color: initial;
+      --tw-ring-shadow: 0 0 #0000;
+      --tw-inset-ring-color: initial;
+      --tw-inset-ring-shadow: 0 0 #0000;
+      --tw-ring-inset: initial;
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-offset-shadow: 0 0 #0000;
+      --tw-outline-style: solid;
+      --tw-duration: initial;
+      --tw-ease: initial;
+    }
+  }
 }
 
-.dossier-input:focus {
-    border-color: var(--border-hover);
-}
 --------------------
 END OF FILE: static\css\tailwind-output.css
 
 START OF FILE: static\js\api.js
 --------------------
 /**
- * CVespresso - API Bridge
- * Upravlja komunikacijom između Master Dosijea i FastAPI backend-a.
- * Dodata osnovna sanitizacija na frontendu i poboljšan UI feedback.
+ * CVespresso - API Bridge & Archive Manager
+ * Verzija: 8.1 (Zaključavanje dugmadi + Vidljivo Delete dugme)
  */
 
 document.getElementById('btnCV').addEventListener('click', () => generate('cv'));
 document.getElementById('btnCL').addEventListener('click', () => generate('cl'));
 
-/**
- * Pomoćna funkcija za bazično čišćenje teksta pre slanja
- */
+let currentSession = { jobDesc: "", appId: null };
+
 function cleanText(text) {
-    if (!text) return "";
-    return text.replace(/<[^>]*>?/gm, '').trim(); // Uklanja HTML tagove
+    return text ? text.replace(/<[^>]*>?/gm, '').trim() : "";
 }
 
+// OTVARANJE PDF PREVIEW MODALA
+function openPdfPreview(url, fileName) {
+    const pdfModal = document.getElementById('pdfModal');
+    const pdfFrame = document.getElementById('pdfFrame');
+    const btnDownload = document.getElementById('btnDownloadPdf');
+    const btnClose = document.getElementById('btnClosePdf');
+
+    if (!pdfModal || !pdfFrame) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+    }
+    pdfFrame.src = url;
+    pdfModal.classList.remove('hidden');
+
+    btnDownload.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    };
+
+    btnClose.onclick = () => {
+        pdfModal.classList.add('hidden');
+        setTimeout(() => { pdfFrame.src = ""; window.URL.revokeObjectURL(url); }, 300);
+    };
+}
+
+// GLAVNA FUNKCIJA
 async function generate(type) {
     const descField = document.getElementById('jobDesc');
     const desc = cleanText(descField.value);
 
-    if (!desc) {
-        alert("Molim vas, zalepite oglas za posao kako bi AI mogao da prilagodi vaš CV.");
-        return;
+    if (!desc) { alert("Zalepite oglas za posao."); return; }
+
+    const db = window._supabase || window.supabase;
+    let user = null;
+    if (db) {
+        const { data } = await db.auth.getUser();
+        user = data?.user;
     }
 
-    // 1. PREUZIMANJE I ČIŠĆENJE PODATAKA
-    // Prioritet: LocalStorage. Ako je prazno, koristi masterDossier (dummy verziju)
-    let currentDossier = JSON.parse(localStorage.getItem('cv_espresso_dossier')) || masterDossier;
-    
-    // Osiguravamo da su ime i osnovni podaci čisti pre slanja
-    currentDossier.full_name = cleanText(currentDossier.full_name);
+    const isNewJob = (desc !== currentSession.jobDesc);
+    let companyName = "Nova Aplikacija";
 
-    // UI Feedback (Glatko zatamnjenje i vizuelna indikacija rada)
+    if (isNewJob && user) {
+        companyName = prompt("Unesite ime kompanije za koju aplicirate (za arhivu):", "Ime kompanije");
+        if (!companyName) companyName = "Nepoznata Kompanija";
+    }
+
+    let currentDossier = JSON.parse(localStorage.getItem('cv_espresso_dossier')) || (typeof masterDossier !== 'undefined' ? masterDossier : {});
+    currentDossier.full_name = cleanText(currentDossier.full_name || "User");
+
+    // ZAKLJUČAVANJE OBA DUGMETA DA SPREČIMO DUPLE KARTICE
     descField.style.opacity = "0.5";
     descField.disabled = true;
-    const originalBtnText = type === 'cv' ? "Build CV" : "Build Cover Letter";
-    const activeBtn = type === 'cv' ? document.getElementById('btnCV') : document.getElementById('btnCL');
-    activeBtn.innerText = "Cooking..."; 
-    activeBtn.disabled = true;
+    
+    const btnCV = document.getElementById('btnCV');
+    const btnCL = document.getElementById('btnCL');
+    const originalTextCV = btnCV.innerText;
+    const originalTextCL = btnCL.innerText;
+    
+    btnCV.disabled = true;
+    btnCL.disabled = true;
+    
+    if (type === 'cv') btnCV.innerText = "Cooking...";
+    else btnCL.innerText = "Cooking...";
+
+    // Osigurač za jezik
+    const lang = (typeof currentLang !== 'undefined') ? currentLang : 'sr';
 
     try {
-        // 2. SLANJE PODATAKA BACKEND-U
-        // currentLang se podrazumeva kao globalna varijabla iz tvog glavnog JS-a
-        const response = await fetch(`${type === 'cv' ? '/generate-pdf/' : '/generate-cover-letter/'}?lang=${currentLang}`, {
+        const response = await fetch(`${type === 'cv' ? '/generate-pdf/' : '/generate-cover-letter/'}?lang=${lang}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                job_description: desc,
-                user_dossier: currentDossier 
-            })
+            body: JSON.stringify({ job_description: desc, user_dossier: currentDossier })
         });
 
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            
-            // 3. DINAMIČKO IMENOVANJE FAJLA
-            // Koristimo očišćeno ime iz dosijea radi privatnosti i profesionalizma
-            const safeName = currentDossier.full_name.replace(/\s+/g, '_') || "User";
             const filePrefix = type === 'cv' ? 'CV' : 'CoverLetter';
-            
-            a.download = `CVespresso_${filePrefix}_${safeName}_${currentLang}.pdf`;
-            
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            
-            // Oslobađanje memorije
-            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+            const fileName = `CVespresso_${filePrefix}_${currentDossier.full_name.replace(/\s+/g, '_')}_${lang}.pdf`;
+
+            openPdfPreview(url, fileName);
+
+            // UPIS U BAZU
+            if (user && isNewJob) {
+                const newApp = {
+                    user_id: user.id,
+                    company_name: companyName,
+                    job_description: desc,
+                    cv_data: currentDossier
+                };
+
+                const { data, error } = await db.from('applications').insert(newApp).select();
+                if (!error && data) {
+                    currentSession.jobDesc = desc;
+                    currentSession.appId = data[0].id;
+                    loadApplications();
+                }
+            }
         } else {
-            const errorData = await response.json();
-            alert(`Greška na serveru: ${errorData.detail || "Problem pri generisanju fajla."}`);
+            alert("❌ Python server prijavio grešku.");
         }
     } catch (err) {
-        console.error("API Connection Error:", err);
-        alert("Veza sa serverom je prekinuta. Proverite da li je FastAPI terminal aktivan.");
+        console.error("🚨 Mrežna greška:", err);
     } finally {
-        // Vraćanje UI stanja u prvobitno
+        // OTKLJUČAVANJE
         descField.style.opacity = "1";
         descField.disabled = false;
-        activeBtn.innerText = originalBtnText;
-        activeBtn.disabled = false;
+        btnCV.innerText = originalTextCV;
+        btnCL.innerText = originalTextCL;
+        btnCV.disabled = false;
+        btnCL.disabled = false;
     }
 }
+
+// REGENERACIJA IZ ARHIVE (Popravljen event bag)
+window.rebuildFromArchive = async function(event, appId, type) {
+    const btnId = event.currentTarget;
+    const originalText = btnId.innerText;
+    
+    try {
+        const db = window._supabase || window.supabase;
+        const { data, error } = await db.from('applications').select('*').eq('id', appId).single();
+        if (error || !data) throw error;
+
+        btnId.innerText = "Wait...";
+        btnId.disabled = true;
+
+        const lang = (typeof currentLang !== 'undefined') ? currentLang : 'sr';
+
+        const response = await fetch(`${type === 'cv' ? '/generate-pdf/' : '/generate-cover-letter/'}?lang=${lang}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ job_description: data.job_description, user_dossier: data.cv_data })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            openPdfPreview(url, `CVespresso_Archive_${lang}.pdf`);
+        } else {
+            throw new Error("Server vratio grešku pri generisanju.");
+        }
+    } catch (err) { 
+        console.error(err);
+        alert("Greška pri preuzimanju iz arhive."); 
+    } finally {
+        btnId.innerText = originalText;
+        btnId.disabled = false;
+    }
+}
+
+async function loadApplications() {
+    const listContainer = document.getElementById('applicationsList');
+    if (!listContainer) return;
+
+    const db = window._supabase || window.supabase;
+    if (!db) return;
+
+    try {
+        const { data: { user } } = await db.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await db.from('applications').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        if (error) throw error;
+
+        if (data.length === 0) {
+            listContainer.innerHTML = `<div class="text-center opacity-20 text-[10px] uppercase font-bold tracking-widest mt-10">Nema sačuvanih aplikacija</div>`;
+            return;
+        }
+
+        let html = '';
+        data.forEach(app => {
+            const date = new Date(app.created_at).toLocaleDateString('sr-RS');
+            const company = app.company_name || "Nepoznata Kompanija";
+            
+            // Ažuriran HTML kartice sa vidljivim dugmetom za brisanje
+            html += `
+            <div class="p-4 border border-[var(--border)] rounded-xl relative group hover:border-[var(--border-hover)] bg-[var(--bg)] shadow-sm mt-3">
+                
+                <button onclick="deleteApplication('${app.id}')" class="absolute top-2 right-2 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded transition-all" title="Obriši aplikaciju">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                    </svg>
+                </button>
+
+                <h4 class="font-bold text-xs uppercase tracking-wider mb-1 pr-8 truncate" title="${company}">${cleanText(company)}</h4>
+                <p class="text-[9px] opacity-40 mb-3">${date}</p>
+                <div class="flex gap-2 items-center">
+                    <button onclick="rebuildFromArchive(event, '${app.id}', 'cv')" class="text-[8px] border border-[var(--border)] px-2 py-2 rounded uppercase font-bold tracking-widest flex-1 hover:border-gray-400 transition-colors">CV</button>
+                    <button onclick="rebuildFromArchive(event, '${app.id}', 'cl')" class="text-[8px] border border-[var(--border)] px-2 py-2 rounded uppercase font-bold tracking-widest flex-1 hover:border-gray-400 transition-colors">Letter</button>
+                </div>
+            </div>`;
+        });
+        listContainer.innerHTML = html;
+    } catch (err) { console.error("Greška pri fioci:", err); }
+}
+
+window.deleteApplication = async function(id) {
+    if (!confirm("Obrisati ovu aplikaciju iz arhive?")) return;
+    try {
+        const db = window._supabase || window.supabase;
+        await db.from('applications').delete().eq('id', id);
+        if (currentSession.appId === id) {
+            currentSession.jobDesc = "";
+            currentSession.appId = null;
+        }
+        loadApplications(); 
+    } catch (err) { alert("Greška pri brisanju."); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const interval = setInterval(() => {
+        const db = window._supabase || window.supabase;
+        if (db) {
+            clearInterval(interval);
+            db.auth.onAuthStateChange((event, session) => {
+                if (session) loadApplications();
+            });
+            db.auth.getUser().then(({data}) => {
+                if(data?.user) loadApplications();
+            });
+        }
+    }, 500);
+});
 --------------------
 END OF FILE: static\js\api.js
 
 START OF FILE: static\js\auth.js
 --------------------
 /**
- * CVespresso - Supabase Auth & Sync (POPRAVLJENA VERZIJA)
- * Kompletan modul za upravljanje identitetom i cloud sinhronizacijom.
- * 
- * 🛠️ POPRAVKE:
- * 1. Nema auto-rendera editora - sinhronizacija radi u pozadini
- * 2. Bolja validacija session-a
- * 3. Debug logovi za lakšu dijagnostiku
- * 4. Sprečava race conditions sa dossier.js
- * 5. Bezbednosna provera pre sync-a
+ * CVespresso - Supabase Auth (MINIMALNA RADNA VERZIJA)
+ * Fokus: Login/Logout + background sync, bez auto-rendera
  */
 
 // ============================================
-// 1. INICIJALIZACIJA SUPABASE KLIJENTA
+// 1. KONFIGURACIJA
 // ============================================
-// ⚠️ ZAMENI OVE VREDNOSTI SA TVOJIM PRAVIM KLJUČEVIMA
-// Pronađi ih u: Supabase Dashboard -> Project Settings -> API
-const supabaseUrl = 'https://TVOJ_PROJEKAT.supabase.co';
-const supabaseKey = 'TVOJ_ANON_KEY';
+const SUPABASE_URL = 'https://vywoekaobnhbyoxuozbq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5d29la2FvYm5oYnlveHVvemJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwNzM2NjcsImV4cCI6MjA4NzY0OTY2N30.hph67oSWjYM414sOLXTz6tO75fiEWkzsvp3B-ViU1Vk';
 
-// Validacija URL-a i ključa pre inicijalizacije
-if (!supabaseUrl || supabaseUrl.includes('TVOJ_PROJEKAT')) {
-    console.warn("⚠️ UPOZORENJE: Supabase URL nije konfigurisan! Auth neće raditi.");
-}
+// 1. KREIRANJE GLOBALNE KONEKCIJE (OVO REŠAVA SVE TVOJE BAGOVE!)
+window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _supabase = window._supabase; 
 
-if (!supabaseKey || supabaseKey.includes('TVOJ_ANON_KEY')) {
-    console.warn("⚠️ UPOZORENJE: Supabase Key nije konfigurisan! Auth neće raditi.");
-}
+let syncLock = false;
 
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-// ============================================
-// 2. GLOBALNE PROMENLJIVE
-// ============================================
-let isSyncing = false; // Sprečava višestruke sync pozive
-
-// ============================================
-// 3. GOOGLE LOGIN FUNKCIJA
-// ============================================
-async function loginWithGoogle() {
-    console.log("=== 🔐 LOGIN POKRENUT ===");
-    
+// 2. LOGIN / LOGOUT
+window.loginWithGoogle = async function() {
     try {
-        const { data, error } = await _supabase.auth.signInWithOAuth({
+        await _supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: {
-                // Vraća korisnika na trenutnu stranicu
-                redirectTo: window.location.origin,
-                // Dodatne opcije za Google
-                queryParams: {
-                    access_type: 'offline',
-                    prompt: 'consent'
-                }
-            }
+            options: { redirectTo: window.location.origin }
         });
-        
-        if (error) {
-            console.error("❌ Google Auth Error:", error);
-            alert("Greška pri Google prijavi: " + error.message);
-        } else {
-            console.log("✅ Google Auth redirect initiated");
-        }
-    } catch (err) {
-        console.error("❌ Login Exception:", err);
-        alert("Neočekivana greška pri prijavi. Proverite konzolu.");
+    } catch (e) {
+        console.error("Login error:", e);
+        alert("Greška pri prijavi: " + e.message);
     }
-}
+};
 
-// ============================================
-// 4. LOGOUT FUNKCIJA
-// ============================================
-async function logout() {
-    console.log("=== 🚪 LOGOUT POKRENUT ===");
-    
+window.logout = async function() {
     try {
-        const { error } = await _supabase.auth.signOut();
-        
-        if (!error) {
-            console.log("✅ User signed out successfully");
-            
-            // Brišemo lokalni keš radi bezbednosti
-            localStorage.removeItem('cv_espresso_dossier');
-            
-            // Osveži stranicu da resetuje sve state
-            window.location.reload();
-        } else {
-            console.error("❌ Logout Error:", error.message);
-            alert("Greška pri odjavi: " + error.message);
+        await _supabase.auth.signOut();
+        localStorage.removeItem('cv_espresso_dossier');
+        window.location.reload();
+    } catch (e) {}
+};
+
+// 3. SYNC IZ CLOUD-A (Učitavanje dosijea iz baze)
+window.fetchProfileFromCloud = async function(userId) {
+    if (syncLock) return;
+    syncLock = true;
+    try {
+        const { data, error } = await _supabase.from('profiles').select('cv_data').eq('id', userId).single();
+        if (data && data.cv_data) {
+            if (typeof masterDossier !== 'undefined') Object.assign(masterDossier, data.cv_data);
+            localStorage.setItem('cv_espresso_dossier', JSON.stringify(data.cv_data));
         }
-    } catch (err) {
-        console.error("❌ Logout Exception:", err);
-        alert("Neočekivana greška pri odjavi.");
-    }
-}
+    } catch (e) {} finally { syncLock = false; }
+};
 
-// ============================================
-// 5. AUTOMATSKO PRAĆENJE STANJA KORISNIKA
-// ============================================
-// Ova funkcija detektuje login/logout i upravlja interfejsom
-// ⚠️ KLJUČNA POPRAVKA: Ne otvara editor automatski!
+// 4. SYNC NA CLOUD (Snimanje dosijea u bazu)
+window.syncDossierToCloud = async function(dossierData) {
+    if (syncLock) return;
+    syncLock = true;
+    try {
+        const { data: { user } } = await _supabase.auth.getUser();
+        if (!user) return; 
+        await _supabase.from('profiles').upsert({ id: user.id, cv_data: dossierData });
+    } catch (e) {} finally { syncLock = false; }
+};
 
-_supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("=== 📡 AUTH STATE CHANGE ===");
-    console.log("Event:", event);
-    console.log("Session:", session ? "ACTIVE" : "NONE");
-    
+// 5. AUTH STATE LISTENER (Pali/gasi dugmiće)
+_supabase.auth.onAuthStateChange((event, session) => {
     const btnLogin = document.getElementById('btnLogin');
     const btnLogout = document.getElementById('btnLogout');
-    
-    // UI Update - uvek se izvršava
     if (session) {
-        console.log("✅ Korisnik ulogovan:", session.user.email);
-        
         if (btnLogin) btnLogin.classList.add('hidden');
         if (btnLogout) btnLogout.classList.remove('hidden');
-        
-        // ⚠️ SAMO povuci podatke iz baze - NE otvaraj editor!
-        await fetchProfileFromCloud(session.user.id);
-        
+        window.fetchProfileFromCloud(session.user.id);
     } else {
-        console.log("ℹ️ Korisnik nije ulogovan");
-        
         if (btnLogin) btnLogin.classList.remove('hidden');
         if (btnLogout) btnLogout.classList.add('hidden');
     }
 });
 
-// ============================================
-// 6. PREUZIMANJE PODATAKA IZ CLOUD-A
-// ============================================
-// ⚠️ KLJUČNA POPRAVKA: Uklonjen auto-render editora
-
-async function fetchProfileFromCloud(userId) {
-    console.log("=== ☁️ FETCH PROFILE FROM CLOUD ===");
-    console.log("User ID:", userId);
-    
-    if (isSyncing) {
-        console.log("⏳ Sync already in progress, skipping...");
-        return;
-    }
-    
-    isSyncing = true;
-    
+// 6. INIT CHECK
+(async () => {
     try {
-        const { data, error } = await _supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-        
-        // Greška PGRST116 znači da korisnik nema još uvek sačuvan profil (prvi login)
-        if (error && error.code !== 'PGRST116') {
-            console.error("❌ Supabase Error:", error);
-            throw error;
-        }
-        
-        if (data) {
-            console.log("✅ Podaci povučeni iz Supabase baze");
-            console.log("📊 Profile data keys:", Object.keys(data));
-            
-            // ⚠️ KLJUČNA POPRAVKA:
-            // 1. Ažuriraj masterDossier (ako postoji globalno)
-            // 2. Ažuriraj localStorage
-            // 3. NE otvaraj i ne renderuj editor automatski!
-            
-            // Proveri da li masterDossier postoji (iz dossier.js)
-            if (typeof masterDossier !== 'undefined') {
-                // Spoji podatke iz cloud-a sa postojećim masterDossier
-                masterDossier = { ...masterDossier, ...data };
-                console.log("🔄 masterDossier ažuriran iz cloud-a");
-            } else {
-                // Ako masterDossier još nije inicijalizovan, kreiraj ga
-                masterDossier = data;
-                console.log("📦 masterDossier kreiran iz cloud-a");
-            }
-            
-            // Sačuvaj u localStorage za offline korišćenje
-            localStorage.setItem('cv_espresso_dossier', JSON.stringify(masterDossier));
-            console.log("💾 Podaci sačuvani u LocalStorage");
-            
-            // ❌ UKLONJENO - Ne renderuj formu automatski!
-            // Ovo je bio glavni uzrok problema - editor se otvarao sam od sebe
-            
-            // ✅ SAMO ako je editor VEĆ otvoren (korisnik ga je ručno otvorio), onda osveži
-            const dossierEditor = document.getElementById('dossierEditor');
-            if (dossierEditor && 
-                !dossierEditor.classList.contains('hidden') && 
-                typeof renderProfessionalForm === "function") {
-                
-                console.log("📝 Editor je otvoren, osvežavam formu...");
-                renderProfessionalForm();
-            } else {
-                console.log("🔒 Editor je zatvoren, podaci sinhronizovani u pozadini");
-            }
-            
-        } else {
-            console.log("ℹ️ Nema sačuvanog profila u bazi (prvi login korisnika)");
-        }
-        
-    } catch (err) {
-        console.error("❌ Greška pri povlačenju profila iz oblaka:", err.message);
-        // Ne prekidaj aplikaciju - nastavi sa lokalnim podacima
-    } finally {
-        isSyncing = false;
-    }
-}
-
-// ============================================
-// 7. SINHRONIZACIJA NA OBLAK
-// ============================================
-// Poziva se iz dossier.js kada korisnik sačuva podatke
-
-async function syncDossierToCloud(dossierData) {
-    console.log("=== 📤 SYNC DOSSIER TO CLOUD ===");
-    
-    if (isSyncing) {
-        console.log("⏳ Sync already in progress, skipping...");
-        return;
-    }
-    
-    isSyncing = true;
-    
-    try {
-        // Provera da li je korisnik ulogovan pre slanja
-        const { data: { user }, error: authError } = await _supabase.auth.getUser();
-        
-        if (authError || !user) {
-            console.log("ℹ️ Lokalni mod: Korisnik nije ulogovan");
-            console.log("💾 Podaci sačuvani samo u brauzeru (LocalStorage)");
-            return;
-        }
-        
-        console.log("👤 Ulogovani korisnik:", user.email);
-        console.log("📊 Syncing data for user:", user.id);
-        
-        // Pripremi podatke za slanje
-        const syncData = {
-            id: user.id,
-            ...dossierData,
-            updated_at: new Date().toISOString()
-        };
-        
-        // Upsert: Ako profil postoji - ažuriraj ga, ako ne postoji - napravi ga
-        const { data, error } = await _supabase
-            .from('profiles')
-            .upsert(syncData, {
-                onConflict: 'id' // Ključ za konflikte
-            });
-        
-        if (error) {
-            console.error("❌ Cloud Sync Greška:", error);
-            console.log("⚠️ Podaci su sačuvani lokalno, ali nisu poslati u cloud");
-        } else {
-            console.log("✅ Master Dosije je uspešno bekapovan u Supabase");
-            console.log("📊 Synced at:", syncData.updated_at);
-        }
-        
-    } catch (err) {
-        console.error("❌ Sync Exception:", err);
-    } finally {
-        isSyncing = false;
-    }
-}
-
-// ============================================
-// 8. INICIJALNA PROVERA AUTH STATUS-A
-// ============================================
-// Pokreće se odmah po učitavanju skripte
-
-(async function initAuth() {
-    console.log("=== 🔧 AUTH.JS INITIALIZED ===");
-    
-    // Proveri trenutnu session odmah
-    try {
-        const { data: { session }, error } = await _supabase.auth.getSession();
-        
-        if (error) {
-            console.error("❌ Get Session Error:", error);
-            return;
-        }
-        
-        if (session) {
-            console.log("✅ Active session found on init:", session.user.email);
-            
-            // Ažuriraj UI odmah
-            const btnLogin = document.getElementById('btnLogin');
-            const btnLogout = document.getElementById('btnLogout');
-            
-            if (btnLogin) btnLogin.classList.add('hidden');
-            if (btnLogout) btnLogout.classList.remove('hidden');
-            
-            // Povuci profile iz cloud-a
-            await fetchProfileFromCloud(session.user.id);
-        } else {
-            console.log("ℹ️ No active session on init");
-        }
-    } catch (err) {
-        console.error("❌ Init Auth Error:", err);
-    }
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) window.fetchProfileFromCloud(session.user.id);
+    } catch (e) {}
 })();
 
-// ============================================
-// 9. IZLOŽI FUNKCIJE GLOBALNO
-// ============================================
-// Omogući pozivanje iz HTML onclick atributa
-
-window.loginWithGoogle = loginWithGoogle;
-window.logout = logout;
-window.syncDossierToCloud = syncDossierToCloud;
-window.fetchProfileFromCloud = fetchProfileFromCloud;
-
-console.log("✅ Auth functions exposed to window object");
 --------------------
 END OF FILE: static\js\auth.js
 
 START OF FILE: static\js\dossier.js
 --------------------
 /**
- * CVespresso - Master Dossier Logic (FINAL POPRAVKA)
+ * CVespresso - Master Dossier Logic
+ * Dodate socijalne mreže, portfolio linkovi i rešen bag sa brisanjem teksta pri dodavanju reda
  */
 
 // 1. DUMMY PROFILE
@@ -1074,6 +2492,9 @@ const dummyProfile = {
     email: "vas.email@primer.com",
     phone: "+381 60 000 0000",
     location: "Grad, Država",
+    linkedin: "linkedin.com/in/korisnik",
+    github: "github.com/korisnik",
+    website: "www.mojsajt.com",
     experience: [
         { role: "Vaša Pozicija", company: "Naziv Firme", period: "2020 - 2024", desc: "Opis dostignuća" }
     ],
@@ -1126,6 +2547,9 @@ function initializeDossier() {
         email: hasValidData ? savedDossier.email : dummyProfile.email,
         phone: hasValidData ? savedDossier.phone : dummyProfile.phone,
         location: hasValidData ? savedDossier.location : dummyProfile.location,
+        linkedin: hasValidData && savedDossier.linkedin ? savedDossier.linkedin : dummyProfile.linkedin,
+        github: hasValidData && savedDossier.github ? savedDossier.github : dummyProfile.github,
+        website: hasValidData && savedDossier.website ? savedDossier.website : dummyProfile.website,
         experience: (hasValidData && Array.isArray(savedDossier.experience)) 
                     ? savedDossier.experience 
                     : JSON.parse(JSON.stringify(dummyProfile.experience)),
@@ -1146,123 +2570,107 @@ function initializeDossier() {
     localStorage.setItem('cv_espresso_dossier', JSON.stringify(masterDossier));
     
     console.log("=== 📦 DOSSIER INIT COMPLETE ===");
-    console.log("👤 User:", masterDossier.full_name);
-    console.log("📧 Email:", masterDossier.email);
 }
 
-// 4. DOM READY - SVE SE OVDE DEŠAVA
+// 4. DOM READY
 document.addEventListener('DOMContentLoaded', () => {
     console.log("=== 🚀 DOM CONTENT LOADED ===");
-    
-    // Inicijalizuj dossier
     initializeDossier();
     
-    // Postavi event listener
     const openDossierBtn = document.getElementById('openDossier');
     const dossierEditor = document.getElementById('dossierEditor');
     
-    console.log("🔘 Button:", openDossierBtn ? "FOUND" : "NOT FOUND");
-    console.log("📝 Editor:", dossierEditor ? "FOUND" : "NOT FOUND");
-    console.log("👁️ Editor Hidden:", dossierEditor?.classList.contains('hidden') ? "YES" : "NO");
-    
     if (openDossierBtn && dossierEditor) {
         openDossierBtn.addEventListener('click', () => {
-            console.log("=== 🎯 OPEN DOSSIER CLICKED ===");
             dossierEditor.classList.remove('hidden');
             renderProfessionalForm();
         });
     }
     
-    // Izloži funkcije globalno
     window.renderProfessionalForm = renderProfessionalForm;
     window.saveProfessionalDossier = saveProfessionalDossier;
     window.addEntry = addEntry;
     window.removeEntry = removeEntry;
-    
-    console.log("=== ✅ DOSSIER.JS READY ===");
 });
 
 // 5. RENDER FORME
 function renderProfessionalForm() {
-    console.log("📝 Rendering form...");
-    
     const container = document.getElementById('formContainer');
-    if (!container) {
-        console.error("❌ formContainer not found!");
-        return;
-    }
+    if (!container) return;
     
-    if (!masterDossier) {
-        console.error("❌ masterDossier is null!");
-        initializeDossier();
-    }
+    if (!masterDossier) initializeDossier();
+    if (!masterDossier.skills) masterDossier.skills = { technical: [], industry: [], soft: [] };
     
     container.innerHTML = `
     <div class="space-y-12 pb-20">
-        <!-- Lični Podaci -->
         <section class="space-y-4">
-            <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30 border-b border-[var(--border)] pb-2">01. Lični Podaci</h3>
+            <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30 border-b border-[var(--border)] pb-2">01. Lični Podaci & Linkovi</h3>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="text" id="fName" value="${escapeHtml(masterDossier.full_name)}" class="dossier-input" placeholder="Puno ime">
                 <input type="text" id="fTitle" value="${escapeHtml(masterDossier.title)}" class="dossier-input" placeholder="Titula">
             </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <input type="email" id="fEmail" value="${escapeHtml(masterDossier.email)}" class="dossier-input" placeholder="Email">
                 <input type="text" id="fPhone" value="${escapeHtml(masterDossier.phone)}" class="dossier-input" placeholder="Telefon">
                 <input type="text" id="fLoc" value="${escapeHtml(masterDossier.location)}" class="dossier-input" placeholder="Lokacija">
             </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="text" id="fLinkedin" value="${escapeHtml(masterDossier.linkedin || '')}" class="dossier-input" placeholder="LinkedIn URL">
+                <input type="text" id="fGithub" value="${escapeHtml(masterDossier.github || '')}" class="dossier-input" placeholder="GitHub URL">
+                <input type="text" id="fWebsite" value="${escapeHtml(masterDossier.website || '')}" class="dossier-input" placeholder="Lični vebsajt / Portfolio">
+            </div>
+            
             <textarea id="fMotto" class="dossier-input h-20" placeholder="Motto">${escapeHtml(masterDossier.motto)}</textarea>
         </section>
 
-        <!-- Obrazovanje -->
         <section class="space-y-4">
             <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
                 <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">02. Obrazovanje</h3>
                 <button onclick="addEntry('education')" class="text-[9px] font-bold text-blue-500 uppercase">+ Dodaj</button>
             </div>
             <div id="educationList" class="space-y-4">
-                ${masterDossier.education.map((edu, i) => renderEntry('education', edu, i)).join('')}
+                ${(masterDossier.education || []).map((edu, i) => renderEntry('education', edu, i)).join('')}
             </div>
         </section>
 
-        <!-- Iskustvo -->
         <section class="space-y-4">
             <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
                 <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">03. Iskustvo</h3>
                 <button onclick="addEntry('experience')" class="text-[9px] font-bold text-blue-500 uppercase">+ Dodaj</button>
             </div>
             <div id="experienceList" class="space-y-6">
-                ${masterDossier.experience.map((exp, i) => renderEntry('experience', exp, i)).join('')}
+                ${(masterDossier.experience || []).map((exp, i) => renderEntry('experience', exp, i)).join('')}
             </div>
         </section>
 
-        <!-- Veštine -->
         <section class="space-y-6">
             <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30 border-b border-[var(--border)] pb-2">04. Veštine</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label class="text-[9px] font-bold uppercase opacity-50 block mb-2">Tehničke</label>
-                    <textarea id="skillTech" class="dossier-input text-xs h-24" placeholder="Python, JS...">${escapeHtml(masterDossier.skills.technical.join(', '))}</textarea>
+                    <textarea id="skillTech" class="dossier-input text-xs h-24" placeholder="Python, JS...">${escapeHtml((masterDossier.skills?.technical || []).join(', '))}</textarea>
                 </div>
                 <div>
                     <label class="text-[9px] font-bold uppercase opacity-50 block mb-2">Industrijske</label>
-                    <textarea id="skillInd" class="dossier-input text-xs h-24" placeholder="Offset...">${escapeHtml(masterDossier.skills.industry.join(', '))}</textarea>
+                    <textarea id="skillInd" class="dossier-input text-xs h-24" placeholder="Offset...">${escapeHtml((masterDossier.skills?.industry || []).join(', '))}</textarea>
                 </div>
                 <div>
                     <label class="text-[9px] font-bold uppercase opacity-50 block mb-2">Meke veštine</label>
-                    <textarea id="skillSoft" class="dossier-input text-xs h-24" placeholder="Leadership...">${escapeHtml(masterDossier.skills.soft.join(', '))}</textarea>
+                    <textarea id="skillSoft" class="dossier-input text-xs h-24" placeholder="Leadership...">${escapeHtml((masterDossier.skills?.soft || []).join(', '))}</textarea>
                 </div>
             </div>
         </section>
 
-        <!-- Sertifikati -->
         <section class="space-y-4">
             <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
                 <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">05. Sertifikati</h3>
                 <button onclick="addEntry('certifications')" class="text-[9px] font-bold text-blue-500 uppercase">+ Dodaj</button>
             </div>
             <div id="certificationsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                ${masterDossier.certifications.map((cert, i) => renderEntry('certifications', cert, i)).join('')}
+                ${(masterDossier.certifications || []).map((cert, i) => renderEntry('certifications', cert, i)).join('')}
             </div>
         </section>
 
@@ -1270,8 +2678,6 @@ function renderProfessionalForm() {
             Sačuvaj Master Dosije
         </button>
     </div>`;
-    
-    console.log("✅ Form rendered");
 }
 
 function escapeHtml(text) {
@@ -1283,11 +2689,13 @@ function escapeHtml(text) {
 
 function renderEntry(type, data, index) {
     if (type === 'education') {
-        return `<div class="flex gap-2 group">
-            <input type="text" class="dossier-input edu-degree flex-1" value="${escapeHtml(data.degree || '')}" placeholder="Zvanje">
-            <input type="text" class="dossier-input edu-school flex-1" value="${escapeHtml(data.school || '')}" placeholder="Škola">
-            <input type="text" class="dossier-input edu-year w-20" value="${escapeHtml(data.year || '')}" placeholder="Godina">
-            <button onclick="removeEntry('education', ${index})" class="text-red-500 opacity-20 group-hover:opacity-100">×</button>
+        return `<div class="p-4 border border-[var(--border)] rounded-xl relative group transition-all">
+            <button onclick="removeEntry('education', ${index})" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] opacity-0 group-hover:opacity-100 transition-all shadow-md">×</button>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" class="dossier-input edu-degree w-full md:w-2/5" value="${escapeHtml(data.degree || '')}" placeholder="Zvanje">
+                <input type="text" class="dossier-input edu-school w-full md:w-2/5" value="${escapeHtml(data.school || '')}" placeholder="Škola">
+                <input type="text" class="dossier-input edu-year w-full md:w-1/5" value="${escapeHtml(data.year || '')}" placeholder="Godina">
+            </div>
         </div>`;
     }
     if (type === 'experience') {
@@ -1311,49 +2719,75 @@ function renderEntry(type, data, index) {
     return "";
 }
 
-function addEntry(type) {
-    if (type === 'education') masterDossier.education.push({ degree: "", school: "", year: "" });
-    if (type === 'experience') masterDossier.experience.push({ role: "", company: "", period: "", desc: "" });
-    if (type === 'certifications') masterDossier.certifications.push({ name: "", year: "" });
-    renderProfessionalForm();
-}
+// ⚠️ NOVA FUNKCIJA: Čuva trenutno stanje DOM-a u masterDossier objekat u letu
+function syncFormToDossier() {
+    const container = document.getElementById('formContainer');
+    if (!container || container.innerHTML.trim() === '') return;
 
-function removeEntry(type, index) {
-    masterDossier[type].splice(index, 1);
-    renderProfessionalForm();
-}
-
-function saveProfessionalDossier() {
-    masterDossier.full_name = document.getElementById('fName').value.trim();
-    masterDossier.title = document.getElementById('fTitle').value.trim();
-    masterDossier.email = document.getElementById('fEmail').value.trim();
-    masterDossier.phone = document.getElementById('fPhone').value.trim();
-    masterDossier.location = document.getElementById('fLoc').value.trim();
-    masterDossier.motto = document.getElementById('fMotto').value.trim();
+    masterDossier.full_name = document.getElementById('fName')?.value.trim() || "";
+    masterDossier.title = document.getElementById('fTitle')?.value.trim() || "";
+    masterDossier.email = document.getElementById('fEmail')?.value.trim() || "";
+    masterDossier.phone = document.getElementById('fPhone')?.value.trim() || "";
+    masterDossier.location = document.getElementById('fLoc')?.value.trim() || "";
+    masterDossier.linkedin = document.getElementById('fLinkedin')?.value.trim() || "";
+    masterDossier.github = document.getElementById('fGithub')?.value.trim() || "";
+    masterDossier.website = document.getElementById('fWebsite')?.value.trim() || "";
+    masterDossier.motto = document.getElementById('fMotto')?.value.trim() || "";
     
     masterDossier.education = Array.from(document.querySelectorAll('.edu-degree')).map((el, i) => ({
         degree: el.value.trim(),
-        school: document.querySelectorAll('.edu-school')[i].value.trim(),
-        year: document.querySelectorAll('.edu-year')[i].value.trim()
-    })).filter(e => e.degree || e.school);
+        school: document.querySelectorAll('.edu-school')[i]?.value.trim() || "",
+        year: document.querySelectorAll('.edu-year')[i]?.value.trim() || ""
+    }));
     
     masterDossier.experience = Array.from(document.querySelectorAll('.exp-role')).map((el, i) => ({
         role: el.value.trim(),
-        company: document.querySelectorAll('.exp-comp')[i].value.trim(),
-        period: document.querySelectorAll('.exp-period')[i].value.trim(),
-        desc: document.querySelectorAll('.exp-desc')[i].value.trim()
-    })).filter(e => e.role || e.company);
+        company: document.querySelectorAll('.exp-comp')[i]?.value.trim() || "",
+        period: document.querySelectorAll('.exp-period')[i]?.value.trim() || "",
+        desc: document.querySelectorAll('.exp-desc')[i]?.value.trim() || ""
+    }));
     
     masterDossier.skills = {
-        technical: document.getElementById('skillTech').value.split(',').map(s => s.trim()).filter(Boolean),
-        industry: document.getElementById('skillInd').value.split(',').map(s => s.trim()).filter(Boolean),
-        soft: document.getElementById('skillSoft').value.split(',').map(s => s.trim()).filter(Boolean)
+        technical: document.getElementById('skillTech')?.value.split(',').map(s => s.trim()).filter(Boolean) || [],
+        industry: document.getElementById('skillInd')?.value.split(',').map(s => s.trim()).filter(Boolean) || [],
+        soft: document.getElementById('skillSoft')?.value.split(',').map(s => s.trim()).filter(Boolean) || []
     };
     
     masterDossier.certifications = Array.from(document.querySelectorAll('.cert-name')).map((el, i) => ({
         name: el.value.trim(),
-        year: document.querySelectorAll('.cert-year')[i].value.trim()
-    })).filter(c => c.name);
+        year: document.querySelectorAll('.cert-year')[i]?.value.trim() || ""
+    }));
+}
+
+function addEntry(type) {
+    syncFormToDossier(); // ✅ Prvo sačuvaj sve što je korisnik do sada kucao!
+    
+    if (!masterDossier[type]) masterDossier[type] = [];
+    
+    if (type === 'education') masterDossier.education.push({ degree: "", school: "", year: "" });
+    if (type === 'experience') masterDossier.experience.push({ role: "", company: "", period: "", desc: "" });
+    if (type === 'certifications') masterDossier.certifications.push({ name: "", year: "" });
+    
+    renderProfessionalForm(); // Zatim iscrtaj formu sa starim tekstom + novim poljem
+}
+
+function removeEntry(type, index) {
+    syncFormToDossier(); // ✅ Prvo sačuvaj sve
+    
+    if (masterDossier[type] && masterDossier[type].length > index) {
+        masterDossier[type].splice(index, 1);
+    }
+    
+    renderProfessionalForm();
+}
+
+function saveProfessionalDossier() {
+    syncFormToDossier(); // Iskoristimo novu funkciju za očitavanje podataka
+    
+    // Optimizacija: očisti prazne redove pre snimanja u bazu
+    masterDossier.education = masterDossier.education.filter(e => e.degree || e.school);
+    masterDossier.experience = masterDossier.experience.filter(e => e.role || e.company);
+    masterDossier.certifications = masterDossier.certifications.filter(c => c.name);
     
     localStorage.setItem('cv_espresso_dossier', JSON.stringify(masterDossier));
     
@@ -1372,12 +2806,33 @@ START OF FILE: static\js\main.js
 let currentLang = 'sr';
 
 // Event Listeners
-document.getElementById('langBtn').addEventListener('click', toggleLang);
-document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+const langBtn = document.getElementById('langBtn');
+const themeToggleBtn = document.getElementById('themeToggle');
 
+if (langBtn) langBtn.addEventListener('click', toggleLang);
+if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
+
+// ============================================
+// --- AŽURIRANA FUNKCIJA ZA JEZIK ---
+// ============================================
 function toggleLang() {
     currentLang = currentLang === 'sr' ? 'en' : 'sr';
-    document.getElementById('langBtn').innerText = currentLang;
+    if (langBtn) langBtn.innerText = currentLang;
+    
+    // Promena jezika u Info Modalu (Uputstvu)
+    const title = document.getElementById('helpTitle');
+    const txtSr = document.getElementById('helpTextSr');
+    const txtEn = document.getElementById('helpTextEn');
+    
+    if (currentLang === 'en') {
+        if (title) title.innerText = "How to use?";
+        if (txtSr) txtSr.classList.add('hidden');
+        if (txtEn) txtEn.classList.remove('hidden');
+    } else {
+        if (title) title.innerText = "Kako se koristi?";
+        if (txtSr) txtSr.classList.remove('hidden');
+        if (txtEn) txtEn.classList.add('hidden');
+    }
 }
 
 function toggleTheme() {
@@ -1385,8 +2840,11 @@ function toggleTheme() {
     html.classList.toggle('dark');
     const isDark = html.classList.contains('dark');
     
-    document.getElementById('sunIcon').classList.toggle('hidden', !isDark);
-    document.getElementById('moonIcon').classList.toggle('hidden', isDark);
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+    
+    if (sunIcon) sunIcon.classList.toggle('hidden', !isDark);
+    if (moonIcon) moonIcon.classList.toggle('hidden', isDark);
     
     localStorage.theme = isDark ? 'dark' : 'light';
 }
@@ -1396,10 +2854,96 @@ function toggleTheme() {
     const isDarkStored = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (isDarkStored) {
         document.documentElement.classList.add('dark');
-        document.getElementById('sunIcon').classList.remove('hidden');
-        document.getElementById('moonIcon').classList.add('hidden');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        if (sunIcon) sunIcon.classList.remove('hidden');
+        if (moonIcon) moonIcon.classList.add('hidden');
     }
 })();
+
+// ============================================
+// --- SIDE DRAWER LOGIKA (FIOKA) ---
+// ============================================
+const btnMenu = document.getElementById('btnMenu');
+const btnCloseMenu = document.getElementById('btnCloseMenu');
+const sideDrawer = document.getElementById('sideDrawer');
+const drawerBackdrop = document.getElementById('drawerBackdrop');
+const drawerOpenDossier = document.getElementById('drawerOpenDossier');
+
+function toggleDrawer() {
+    // Ako nema drawera na stranici, prekini izvršavanje
+    if (!sideDrawer || !drawerBackdrop) return;
+
+    const isClosed = sideDrawer.classList.contains('-translate-x-full');
+    
+    if (isClosed) {
+        // Otvori drawer
+        sideDrawer.classList.remove('-translate-x-full');
+        drawerBackdrop.classList.remove('hidden');
+        // Kratak delay za glatku animaciju opacity-ja
+        setTimeout(() => drawerBackdrop.classList.remove('opacity-0'), 10);
+    } else {
+        // Zatvori drawer
+        sideDrawer.classList.add('-translate-x-full');
+        drawerBackdrop.classList.add('opacity-0');
+        // Sačekaj da se završi CSS tranzicija (500ms) pa ga ukloni iz DOM-a
+        setTimeout(() => drawerBackdrop.classList.add('hidden'), 500); 
+    }
+}
+
+// Postavljanje listenara za Drawer dugmiće
+if (btnMenu) btnMenu.addEventListener('click', toggleDrawer);
+if (btnCloseMenu) btnCloseMenu.addEventListener('click', toggleDrawer);
+if (drawerBackdrop) drawerBackdrop.addEventListener('click', toggleDrawer);
+
+// Preusmeravanje klika iz Drawera na otvaranje Master Dosijea
+if (drawerOpenDossier) {
+    drawerOpenDossier.addEventListener('click', () => {
+        toggleDrawer(); // Prvo zatvori fioku
+        
+        const dossierEditor = document.getElementById('dossierEditor');
+        
+        // Prikazuje formu ako editor i globalna render funkcija postoje
+        if (dossierEditor && typeof renderProfessionalForm === "function") {
+            dossierEditor.classList.remove('hidden');
+            renderProfessionalForm();
+        }
+    });
+}
+
+// ============================================
+// --- HELP MODAL LOGIKA (UPUTSTVO) ---
+// ============================================
+const btnHelp = document.getElementById('btnHelp');
+const helpModal = document.getElementById('helpModal');
+const helpBackdrop = document.getElementById('helpBackdrop');
+const helpContent = document.getElementById('helpContent');
+const btnCloseHelp = document.getElementById('btnCloseHelp');
+
+// Pomoćna funkcija za otvaranje/zatvaranje
+function toggleHelpModal() {
+    if (!helpModal || !helpBackdrop || !helpContent) return;
+
+    if (helpModal.classList.contains('hidden')) {
+        // Otvaranje
+        helpModal.classList.remove('hidden');
+        setTimeout(() => {
+            helpBackdrop.classList.remove('opacity-0');
+            helpContent.classList.remove('opacity-0', 'scale-95');
+        }, 10);
+    } else {
+        // Zatvaranje
+        helpBackdrop.classList.add('opacity-0');
+        helpContent.classList.add('opacity-0', 'scale-95');
+        // Sačekaj da se animacija završi (300ms)
+        setTimeout(() => helpModal.classList.add('hidden'), 300);
+    }
+}
+
+// Event listeneri za Info prozor
+if (btnHelp) btnHelp.addEventListener('click', toggleHelpModal);
+if (btnCloseHelp) btnCloseHelp.addEventListener('click', toggleHelpModal);
+if (helpBackdrop) helpBackdrop.addEventListener('click', toggleHelpModal);
 --------------------
 END OF FILE: static\js\main.js
 
