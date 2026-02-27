@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from groq import AsyncGroq  # <--- IZMENA 1: Uvozimo asinhroni Groq
+from groq import AsyncGroq
 from fpdf import FPDF
 
 # --- NOVI IMPORTI ZA SLOWAPI ---
@@ -40,10 +40,6 @@ templates = Jinja2Templates(directory=[root_dir, os.path.join(current_dir, "temp
 
 # Putanja do fonta
 FONT_PATH = os.path.join(current_dir, "arial.ttf")
-
-# --- API KLIJENT ---
-api_key = os.getenv("GROQ_API_KEY")
-client = AsyncGroq(api_key=api_key, max_retries=0)  # <--- IZMENA 2: Inicijalizacija asinhronog klijenta
 
 # --- POMOĆNE FUNKCIJE ---
 def sanitize_input(text: str) -> str:
@@ -113,7 +109,6 @@ def create_pdf_header(pdf: FPDF, profile_data: dict):
     # Prebacivanje na glavnu crnu boju za ostatak teksta
     pdf.set_text_color(0, 0, 0)
     pdf.set_font('ArialUni', size=11)
-
 
 # Model podataka
 class FullDossierRequest(BaseModel):
@@ -232,7 +227,14 @@ async def generate_pdf(request: Request, dossier_req: FullDossierRequest, backgr
         """
 
     try:
-        completion = await client.chat.completions.create(  # <--- IZMENA 3: Dodato await
+        # POUZDANO: Pravimo klijenta UNUTAR funkcije za svako pozivanje!
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("Nedostaje GROQ_API_KEY u Vercel Environment Variables")
+            
+        client = AsyncGroq(api_key=api_key, max_retries=1)
+        
+        completion = await client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": sys_msg},
@@ -389,7 +391,14 @@ async def generate_cover_letter(request: Request, dossier_req: FullDossierReques
         """
 
     try:
-        completion = await client.chat.completions.create(  # <--- IZMENA 4: Dodato await i ovde
+        # POUZDANO: Pravimo klijenta UNUTAR funkcije za svako pozivanje!
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("Nedostaje GROQ_API_KEY u Vercel Environment Variables")
+            
+        client = AsyncGroq(api_key=api_key, max_retries=1)
+        
+        completion = await client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": sys_msg},
