@@ -1,0 +1,1405 @@
+### STRUKTURA PROJEKTA ###
+cv builder/
+    index.html
+    package.json
+    tailwind.config.js
+    vercel.json
+    api/
+        main.py
+        templates/
+            cv_template.html
+    static/
+        manifest.json
+        css/
+            style.css
+            tailwind-output.css
+        js/
+            api.js
+            auth.js
+            dossier.js
+            main.js
+
+==================================================
+
+START OF FILE: index.html
+--------------------
+<!DOCTYPE html>
+<html lang="sr" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CVespresso | Powered by Bojan Pejić</title>
+    
+    <!-- ✅ POPRAVLJENO: Uklonjeni razmaci u URL-ovima -->
+    <link href="https://fonts.googleapis.com/css2?family=Satisfy&family=Geist:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/tailwind-output.css">
+    
+    <!-- ✅ POPRAVLJENO: Uklonjeni razmaci -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=TVOJ_SITE_KEY"></script>
+    
+    <!-- ✅ DODATO: Inline stil za fallback tekst boju -->
+    <style>
+        /* Fallback za --text varijablu ako nije definisana */
+        :root { --text: oklch(0.14 0 0); }
+        .dark { --text: oklch(0.99 0 0); }
+        body { color: var(--text, var(--border-hover)); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-6 font-sans transition-all duration-500 bg-[var(--bg)] text-[var(--text)]">
+
+    <div id="authBar" class="fixed top-4 right-6 z-[100] flex gap-4">
+        <button id="btnLogin" onclick="loginWithGoogle()" class="text-[9px] font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-all bg-[var(--bg)] p-2 rounded border border-[var(--border)]">
+            [ Sign in with Google ]
+        </button>
+        <button id="btnLogout" onclick="logout()" class="hidden text-[9px] font-black uppercase tracking-[0.3em] text-red-500 hover:opacity-100 transition-all bg-[var(--bg)] p-2 rounded border border-red-900/20">
+            [ Logout ]
+        </button>
+    </div>
+
+    <header class="w-full max-w-2xl flex justify-between items-center mb-16 mt-12">
+        <div class="flex items-baseline gap-1 select-none">
+            <span class="text-2xl font-bold tracking-tighter uppercase">CV</span>
+            <span class="text-3xl font-cursive">espresso</span>
+        </div>
+        <div class="flex items-center gap-8">
+            <button id="langBtn" class="text-xs font-bold tracking-[0.2em] uppercase opacity-40 hover:opacity-100 transition-opacity">
+                sr
+            </button>
+            <button id="themeToggle" class="focus:outline-none">
+                <svg id="sunIcon" class="icon-toggle hidden w-5 h-5" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg id="moonIcon" class="icon-toggle w-5 h-5" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-2xl space-y-10">
+        <div class="text-center">
+            <button id="openDossier" class="text-[9px] font-bold uppercase tracking-[0.4em] opacity-20 hover:opacity-100 transition-all">
+                [ Edit Master Dossier ]
+            </button>
+        </div>
+
+        <textarea id="jobDesc" rows="12" 
+            class="w-full p-6 rounded-xl transition-all resize-none placeholder:opacity-20 shadow-inner bg-transparent border border-[var(--border)]" 
+            placeholder="Paste your job specs..."></textarea>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button id="btnCV" class="btn-espresso py-4 rounded-lg text-[10px] font-bold uppercase tracking-[0.3em]">
+                Build CV
+            </button>
+            <button id="btnCL" class="btn-espresso py-4 rounded-lg text-[10px] font-bold uppercase tracking-[0.3em]">
+                Letter
+            </button>
+        </div>
+    </main>
+
+    <!-- ✅ Editor je hidden by default - dobro! -->
+    <div id="dossierEditor" class="hidden fixed inset-0 z-50 bg-[var(--bg)] p-6 md:p-20 overflow-y-auto transition-all duration-500">
+        <div class="max-w-2xl mx-auto">
+            <header class="flex justify-between items-center mb-12 border-b border-[var(--border)] pb-6">
+                <h2 class="text-xl font-bold uppercase tracking-widest">Master <span class="font-cursive lowercase">dossier</span></h2>
+                <button onclick="document.getElementById('dossierEditor').classList.add('hidden')" class="opacity-40 hover:opacity-100 font-bold text-[10px] uppercase tracking-widest">[ Zatvori ]</button>
+            </header>
+            
+            <div id="formContainer" class="space-y-8 pb-20"></div>
+        </div>
+    </div>
+
+    <footer class="mt-auto py-12 text-[8px] font-bold uppercase tracking-[0.6em] select-none text-center w-full opacity-30">
+        Bojan Pejić &copy; 2026 | Head of Production
+    </footer>
+
+    <!-- ✅ SKRIPTE NA KRAJU - PRAVILAN REDOSLED -->
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/dossier.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/auth.js"></script>
+    
+    <!-- ✅ DODATO: Debug log za potvrdu da je sve učitano -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("=== ✅ INDEX.HTML FULLY LOADED ===");
+            console.log("🔘 openDossier btn:", document.getElementById('openDossier') ? "OK" : "MISSING");
+            console.log("📝 dossierEditor:", document.getElementById('dossierEditor')?.classList.contains('hidden') ? "HIDDEN (good!)" : "VISIBLE (bad!)");
+        });
+    </script>
+</body>
+</html>
+--------------------
+END OF FILE: index.html
+
+START OF FILE: package.json
+--------------------
+{
+  "name": "cv-builder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "tailwindcss": "^4.2.1"
+  }
+}
+
+--------------------
+END OF FILE: package.json
+
+START OF FILE: tailwind.config.js
+--------------------
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./index.html",
+    "./static/js/**/*.js",
+    "./api/templates/**/*.html"
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+--------------------
+END OF FILE: tailwind.config.js
+
+START OF FILE: vercel.json
+--------------------
+{
+  "rewrite": [{ "source": "/(.*)", "destination": "/api/main" }],
+  "functions": {
+    "api/main.py": {
+      "runtime": "vercel-python@0.0.6"
+    }
+  }
+}
+--------------------
+END OF FILE: vercel.json
+
+START OF FILE: api\main.py
+--------------------
+import os
+import json
+import re
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from groq import Groq
+from fpdf import FPDF
+
+# --- NOVI IMPORTI ZA SLOWAPI ---
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Učitavanje eksternih konfiguracija (.env fajl)
+load_dotenv()
+
+# --- INICIJALIZACIJA LIMITERA ---
+# key_func=get_remote_address koristi IP adresu korisnika za praćenje limita
+limiter = Limiter(key_func=get_remote_address)
+app = FastAPI(title="CVespresso API")
+
+# Povezivanje limitera sa FastAPI aplikacijom i definisanje hendlera za grešku
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# --- DINAMIČKO PODEŠAVANJE PUTANJA ---
+current_dir = os.path.dirname(os.path.realpath(__file__))
+root_dir = os.path.dirname(current_dir)
+
+# Montiranje statičkih fajlova
+app.mount("/static", StaticFiles(directory=os.path.join(root_dir, "static")), name="static")
+
+# Podešavanje Jinja2 šablona
+templates = Jinja2Templates(directory=[root_dir, os.path.join(current_dir, "templates")])
+
+# Putanja do fonta
+FONT_PATH = os.path.join(current_dir, "arial.ttf")
+
+# --- API KLIJENT ---
+api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=api_key)
+
+# --- POMOĆNE FUNKCIJE ZA BEZBEDNOST ---
+def sanitize_input(text: str) -> str:
+    """Uklanja HTML tagove radi sprečavanja XSS napada."""
+    if not text:
+        return ""
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text).strip()
+
+def sanitize_dossier(dossier: dict) -> dict:
+    """Rekurzivno čisti sve tekstualne unose u dosijeu."""
+    if isinstance(dossier, dict):
+        return {k: sanitize_dossier(v) for k, v in dossier.items()}
+    elif isinstance(dossier, list):
+        return [sanitize_dossier(i) for i in dossier]
+    elif isinstance(dossier, str):
+        return sanitize_input(dossier)
+    return dossier
+
+# Model podataka
+class FullDossierRequest(BaseModel):
+    job_description: str
+    user_dossier: dict = None 
+
+# Anonimni default profil radi zaštite privatnosti
+DEFAULT_MASTER_DOSSIER = {
+    "full_name": "Korisnik Aplikacije",
+    "title": "Profesionalac",
+    "experience": "Primer radnog iskustva koji AI treba da prilagodi.",
+    "projects": [],
+    "certifications": []
+}
+
+# --- RUTE ---
+
+@app.get("/", response_class=HTMLResponse)
+async def read_index(request: Request):
+    """Servira glavni UI aplikacije"""
+    try:
+        return templates.TemplateResponse("index.html", {"request": request})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Template Error: {str(e)}")
+
+@app.post("/generate-pdf/")
+@limiter.limit("5/minute") # Ograničenje na 5 zahteva po minuti po IP adresi
+async def generate_pdf(request: Request, dossier_req: FullDossierRequest, lang: str = Query("sr", enum=["sr", "en"])):
+    """Generiše PDF CV na osnovu Master JSON-a i oglasa"""
+    
+    # 1. Bezbednosno čišćenje unosa
+    clean_job_desc = sanitize_input(dossier_req.job_description)
+    profile_data = sanitize_dossier(dossier_req.user_dossier) if dossier_req.user_dossier else DEFAULT_MASTER_DOSSIER
+    
+    # 2. AI Logika
+    if lang == "sr":
+        sys_msg = "Ti si profesionalni pisac CV-ja na srpskom jeziku (isključivo EKAVICA)."
+        user_prompt = f"""
+        Prilagodi ovaj dosije: {json.dumps(profile_data)} 
+        oglasu za posao: {clean_job_desc}.
+        STRIKTNA PRAVILA:
+        1. Koristi isključivo EKAVICU (uspešno, rešenje, vreme).
+        2. Zabranjena IJEKAVICA (uspješno, rješenje, vrijeme).
+        3. Fokusiraj se na inženjersku automatizaciju i rezultate.
+        """
+    else:
+        sys_msg = "You are a professional English Resume Writer."
+        user_prompt = f"Tailor this dossier: {json.dumps(profile_data)} to this job: {clean_job_desc}."
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": sys_msg},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2
+        )
+        tailored_text = completion.choices[0].message.content
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
+
+    # 3. PDF Generisanje
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        
+        if not os.path.exists(FONT_PATH):
+            raise FileNotFoundError(f"Font nije pronađen na putanji: {FONT_PATH}")
+            
+        pdf.add_font('ArialUni', '', FONT_PATH, uni=True)
+        
+        # Header/Branding
+        pdf.set_font('ArialUni', size=20)
+        pdf.set_text_color(26, 28, 30)
+        pdf.cell(0, 15, profile_data.get("full_name", "CVespresso User"), ln=True, align='L')
+        
+        pdf.set_font('ArialUni', size=10)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 5, "Generated via CVespresso | Production Hub 2026", ln=True, align='L')
+        
+        pdf.set_draw_color(200, 200, 200)
+        pdf.line(10, 35, 200, 35)
+        pdf.ln(15)
+
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('ArialUni', size=11)
+        
+        # Čišćenje Markdown-a
+        clean_pdf_text = tailored_text.replace('### ', '').replace('**', '').replace('* ', '• ')
+        pdf.multi_cell(0, 7, clean_pdf_text)
+        
+        output_filename = f"CVespresso_{lang}.pdf"
+        pdf.output(output_filename)
+        
+        return FileResponse(path=output_filename, filename=output_filename, media_type='application/pdf')
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF Error: {str(e)}")
+
+@app.post("/generate-cover-letter/")
+@limiter.limit("5/minute") # Ograničenje i za propratno pismo
+async def generate_cover_letter(request: Request, dossier_req: FullDossierRequest, lang: str = Query("sr", enum=["sr", "en"])):
+    """Generiše propratno pismo prilagođeno poziciji"""
+    
+    clean_job_desc = sanitize_input(dossier_req.job_description)
+    profile_data = sanitize_dossier(dossier_req.user_dossier) if dossier_req.user_dossier else DEFAULT_MASTER_DOSSIER
+    
+    if lang == "sr":
+        sys_msg = "Ti si HR menadžer koji piše ubedljiva propratna pisma (EKAVICA)."
+        user_prompt = f"Napiši pismo za profil {json.dumps(profile_data)} i oglas {clean_job_desc}. Samo ekavica."
+    else:
+        sys_msg = "You are a professional career coach writing a cover letter."
+        user_prompt = f"Write a cover letter for {json.dumps(profile_data)} regarding {clean_job_desc}."
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": sys_msg},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.5
+        )
+        cl_text = completion.choices[0].message.content
+        
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.add_font('ArialUni', '', FONT_PATH, uni=True)
+        pdf.set_font('ArialUni', size=11)
+        pdf.multi_cell(0, 7, cl_text.replace('**', ''))
+        
+        output_filename = f"Cover_Letter_{lang}.pdf"
+        pdf.output(output_filename)
+        return FileResponse(output_filename, filename=output_filename, media_type='application/pdf')
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+--------------------
+END OF FILE: api\main.py
+
+START OF FILE: api\templates\cv_template.html
+--------------------
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { margin: 2cm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; line-height: 1.5; color: #1a1c1e; margin: 0; }
+        .header { text-align: left; margin-bottom: 30px; }
+        .full-name { font-size: 24pt; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: -1px; }
+        .contact-info { font-size: 9pt; color: #555; margin-top: 5px; }
+        
+        .section { margin-top: 25px; }
+        .section-title { 
+            font-size: 12pt; 
+            font-weight: bold; 
+            color: #004d99; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .content { margin-top: 10px; font-size: 10.5pt; text-align: justify; }
+        
+        /* Stil za tvoje projekte poput lumaerp.app ili Tron */
+        .project-item { margin-bottom: 10px; }
+        .project-name { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="full-name">{{ full_name }}</div>
+        <div class="contact-info">
+            {{ location }} | {{ email }} | {{ portfolio_url }}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Professional Summary</div>
+        <div class="content">{{ tailored_summary }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Key Projects & Automation</div>
+        <div class="content">
+            {{ tailored_projects }}
+        </div>
+    </div>
+</body>
+</html>
+--------------------
+END OF FILE: api\templates\cv_template.html
+
+START OF FILE: static\manifest.json
+--------------------
+{
+  "name": "Bojan CV AI Builder",
+  "short_name": "BojanCV",
+  "description": "AI generator CV-ja i propratnih pisama za Bojana Pejića",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#004d99",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/942/942799.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+--------------------
+END OF FILE: static\manifest.json
+
+START OF FILE: static\css\style.css
+--------------------
+/* Tvoja inženjerska OKLCH paleta */
+:root {
+    --bg: oklch(0.99 0 0);
+    --border: oklch(0.92 0 0);
+    --border-hover: oklch(0.14 0 0);
+    --footer: oklch(0.85 0 0);
+}
+
+.dark {
+    --bg: oklch(0.25 0.02 240);
+    --border: oklch(0.35 0.02 240);
+    --border-hover: oklch(0.99 0 0);
+    --footer: oklch(0.30 0.02 240);
+}
+
+body { 
+    background-color: var(--bg); 
+    color: var(--border-hover); 
+}
+
+.btn-espresso {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--border-hover);
+    transition: all 0.3s ease;
+}
+
+.btn-espresso:hover {
+    border-color: var(--border-hover);
+    border-width: 1.5px;
+}
+
+.icon-toggle { 
+    width: 20px; 
+    height: 20px; 
+    stroke: currentColor; 
+    fill: none; 
+    opacity: 0.4; 
+    transition: opacity 0.3s; 
+}
+
+.icon-toggle:hover { opacity: 1; }
+
+textarea { 
+    background-color: transparent; 
+    border: 1px solid var(--border); 
+    color: inherit; 
+}
+
+textarea:focus { 
+    border-color: var(--border-hover); 
+    outline: none; 
+}
+
+footer { color: var(--footer); }
+
+/* Font Setup za Tailwind */
+.font-cursive { font-family: 'Satisfy', cursive; }
+
+/* Editor overlay */
+#dossierEditor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg);
+    z-index: 100;
+    overflow-y: auto;
+}
+
+.dossier-input {
+    width: 100%;
+    padding: 1rem;
+    background-color: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.dossier-input:focus {
+    border-color: var(--border-hover);
+}
+--------------------
+END OF FILE: static\css\style.css
+
+START OF FILE: static\css\tailwind-output.css
+--------------------
+/* Tvoja inženjerska OKLCH paleta */
+:root {
+    --bg: oklch(0.99 0 0);
+    --border: oklch(0.92 0 0);
+    --border-hover: oklch(0.14 0 0);
+    --footer: oklch(0.85 0 0);
+}
+
+.dark {
+    --bg: oklch(0.25 0.02 240);
+    --border: oklch(0.35 0.02 240);
+    --border-hover: oklch(0.99 0 0);
+    --footer: oklch(0.30 0.02 240);
+}
+
+body { 
+    background-color: var(--bg); 
+    color: var(--border-hover); 
+}
+
+.btn-espresso {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--border-hover);
+    transition: all 0.3s ease;
+}
+
+.btn-espresso:hover {
+    border-color: var(--border-hover);
+    border-width: 1.5px;
+}
+
+.icon-toggle { 
+    width: 20px; 
+    height: 20px; 
+    stroke: currentColor; 
+    fill: none; 
+    opacity: 0.4; 
+    transition: opacity 0.3s; 
+}
+
+.icon-toggle:hover { opacity: 1; }
+
+textarea { 
+    background-color: transparent; 
+    border: 1px solid var(--border); 
+    color: inherit; 
+}
+
+textarea:focus { 
+    border-color: var(--border-hover); 
+    outline: none; 
+}
+
+footer { color: var(--footer); }
+
+/* Font Setup za Tailwind */
+.font-cursive { font-family: 'Satisfy', cursive; }
+
+/* Editor overlay */
+#dossierEditor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg);
+    z-index: 100;
+    overflow-y: auto;
+}
+
+.dossier-input {
+    width: 100%;
+    padding: 1rem;
+    background-color: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.dossier-input:focus {
+    border-color: var(--border-hover);
+}
+--------------------
+END OF FILE: static\css\tailwind-output.css
+
+START OF FILE: static\js\api.js
+--------------------
+/**
+ * CVespresso - API Bridge
+ * Upravlja komunikacijom između Master Dosijea i FastAPI backend-a.
+ * Dodata osnovna sanitizacija na frontendu i poboljšan UI feedback.
+ */
+
+document.getElementById('btnCV').addEventListener('click', () => generate('cv'));
+document.getElementById('btnCL').addEventListener('click', () => generate('cl'));
+
+/**
+ * Pomoćna funkcija za bazično čišćenje teksta pre slanja
+ */
+function cleanText(text) {
+    if (!text) return "";
+    return text.replace(/<[^>]*>?/gm, '').trim(); // Uklanja HTML tagove
+}
+
+async function generate(type) {
+    const descField = document.getElementById('jobDesc');
+    const desc = cleanText(descField.value);
+
+    if (!desc) {
+        alert("Molim vas, zalepite oglas za posao kako bi AI mogao da prilagodi vaš CV.");
+        return;
+    }
+
+    // 1. PREUZIMANJE I ČIŠĆENJE PODATAKA
+    // Prioritet: LocalStorage. Ako je prazno, koristi masterDossier (dummy verziju)
+    let currentDossier = JSON.parse(localStorage.getItem('cv_espresso_dossier')) || masterDossier;
+    
+    // Osiguravamo da su ime i osnovni podaci čisti pre slanja
+    currentDossier.full_name = cleanText(currentDossier.full_name);
+
+    // UI Feedback (Glatko zatamnjenje i vizuelna indikacija rada)
+    descField.style.opacity = "0.5";
+    descField.disabled = true;
+    const originalBtnText = type === 'cv' ? "Build CV" : "Build Cover Letter";
+    const activeBtn = type === 'cv' ? document.getElementById('btnCV') : document.getElementById('btnCL');
+    activeBtn.innerText = "Cooking..."; 
+    activeBtn.disabled = true;
+
+    try {
+        // 2. SLANJE PODATAKA BACKEND-U
+        // currentLang se podrazumeva kao globalna varijabla iz tvog glavnog JS-a
+        const response = await fetch(`${type === 'cv' ? '/generate-pdf/' : '/generate-cover-letter/'}?lang=${currentLang}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                job_description: desc,
+                user_dossier: currentDossier 
+            })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // 3. DINAMIČKO IMENOVANJE FAJLA
+            // Koristimo očišćeno ime iz dosijea radi privatnosti i profesionalizma
+            const safeName = currentDossier.full_name.replace(/\s+/g, '_') || "User";
+            const filePrefix = type === 'cv' ? 'CV' : 'CoverLetter';
+            
+            a.download = `CVespresso_${filePrefix}_${safeName}_${currentLang}.pdf`;
+            
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            
+            // Oslobađanje memorije
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        } else {
+            const errorData = await response.json();
+            alert(`Greška na serveru: ${errorData.detail || "Problem pri generisanju fajla."}`);
+        }
+    } catch (err) {
+        console.error("API Connection Error:", err);
+        alert("Veza sa serverom je prekinuta. Proverite da li je FastAPI terminal aktivan.");
+    } finally {
+        // Vraćanje UI stanja u prvobitno
+        descField.style.opacity = "1";
+        descField.disabled = false;
+        activeBtn.innerText = originalBtnText;
+        activeBtn.disabled = false;
+    }
+}
+--------------------
+END OF FILE: static\js\api.js
+
+START OF FILE: static\js\auth.js
+--------------------
+/**
+ * CVespresso - Supabase Auth & Sync (POPRAVLJENA VERZIJA)
+ * Kompletan modul za upravljanje identitetom i cloud sinhronizacijom.
+ * 
+ * 🛠️ POPRAVKE:
+ * 1. Nema auto-rendera editora - sinhronizacija radi u pozadini
+ * 2. Bolja validacija session-a
+ * 3. Debug logovi za lakšu dijagnostiku
+ * 4. Sprečava race conditions sa dossier.js
+ * 5. Bezbednosna provera pre sync-a
+ */
+
+// ============================================
+// 1. INICIJALIZACIJA SUPABASE KLIJENTA
+// ============================================
+// ⚠️ ZAMENI OVE VREDNOSTI SA TVOJIM PRAVIM KLJUČEVIMA
+// Pronađi ih u: Supabase Dashboard -> Project Settings -> API
+const supabaseUrl = 'https://TVOJ_PROJEKAT.supabase.co';
+const supabaseKey = 'TVOJ_ANON_KEY';
+
+// Validacija URL-a i ključa pre inicijalizacije
+if (!supabaseUrl || supabaseUrl.includes('TVOJ_PROJEKAT')) {
+    console.warn("⚠️ UPOZORENJE: Supabase URL nije konfigurisan! Auth neće raditi.");
+}
+
+if (!supabaseKey || supabaseKey.includes('TVOJ_ANON_KEY')) {
+    console.warn("⚠️ UPOZORENJE: Supabase Key nije konfigurisan! Auth neće raditi.");
+}
+
+const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+// ============================================
+// 2. GLOBALNE PROMENLJIVE
+// ============================================
+let isSyncing = false; // Sprečava višestruke sync pozive
+
+// ============================================
+// 3. GOOGLE LOGIN FUNKCIJA
+// ============================================
+async function loginWithGoogle() {
+    console.log("=== 🔐 LOGIN POKRENUT ===");
+    
+    try {
+        const { data, error } = await _supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                // Vraća korisnika na trenutnu stranicu
+                redirectTo: window.location.origin,
+                // Dodatne opcije za Google
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent'
+                }
+            }
+        });
+        
+        if (error) {
+            console.error("❌ Google Auth Error:", error);
+            alert("Greška pri Google prijavi: " + error.message);
+        } else {
+            console.log("✅ Google Auth redirect initiated");
+        }
+    } catch (err) {
+        console.error("❌ Login Exception:", err);
+        alert("Neočekivana greška pri prijavi. Proverite konzolu.");
+    }
+}
+
+// ============================================
+// 4. LOGOUT FUNKCIJA
+// ============================================
+async function logout() {
+    console.log("=== 🚪 LOGOUT POKRENUT ===");
+    
+    try {
+        const { error } = await _supabase.auth.signOut();
+        
+        if (!error) {
+            console.log("✅ User signed out successfully");
+            
+            // Brišemo lokalni keš radi bezbednosti
+            localStorage.removeItem('cv_espresso_dossier');
+            
+            // Osveži stranicu da resetuje sve state
+            window.location.reload();
+        } else {
+            console.error("❌ Logout Error:", error.message);
+            alert("Greška pri odjavi: " + error.message);
+        }
+    } catch (err) {
+        console.error("❌ Logout Exception:", err);
+        alert("Neočekivana greška pri odjavi.");
+    }
+}
+
+// ============================================
+// 5. AUTOMATSKO PRAĆENJE STANJA KORISNIKA
+// ============================================
+// Ova funkcija detektuje login/logout i upravlja interfejsom
+// ⚠️ KLJUČNA POPRAVKA: Ne otvara editor automatski!
+
+_supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("=== 📡 AUTH STATE CHANGE ===");
+    console.log("Event:", event);
+    console.log("Session:", session ? "ACTIVE" : "NONE");
+    
+    const btnLogin = document.getElementById('btnLogin');
+    const btnLogout = document.getElementById('btnLogout');
+    
+    // UI Update - uvek se izvršava
+    if (session) {
+        console.log("✅ Korisnik ulogovan:", session.user.email);
+        
+        if (btnLogin) btnLogin.classList.add('hidden');
+        if (btnLogout) btnLogout.classList.remove('hidden');
+        
+        // ⚠️ SAMO povuci podatke iz baze - NE otvaraj editor!
+        await fetchProfileFromCloud(session.user.id);
+        
+    } else {
+        console.log("ℹ️ Korisnik nije ulogovan");
+        
+        if (btnLogin) btnLogin.classList.remove('hidden');
+        if (btnLogout) btnLogout.classList.add('hidden');
+    }
+});
+
+// ============================================
+// 6. PREUZIMANJE PODATAKA IZ CLOUD-A
+// ============================================
+// ⚠️ KLJUČNA POPRAVKA: Uklonjen auto-render editora
+
+async function fetchProfileFromCloud(userId) {
+    console.log("=== ☁️ FETCH PROFILE FROM CLOUD ===");
+    console.log("User ID:", userId);
+    
+    if (isSyncing) {
+        console.log("⏳ Sync already in progress, skipping...");
+        return;
+    }
+    
+    isSyncing = true;
+    
+    try {
+        const { data, error } = await _supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        
+        // Greška PGRST116 znači da korisnik nema još uvek sačuvan profil (prvi login)
+        if (error && error.code !== 'PGRST116') {
+            console.error("❌ Supabase Error:", error);
+            throw error;
+        }
+        
+        if (data) {
+            console.log("✅ Podaci povučeni iz Supabase baze");
+            console.log("📊 Profile data keys:", Object.keys(data));
+            
+            // ⚠️ KLJUČNA POPRAVKA:
+            // 1. Ažuriraj masterDossier (ako postoji globalno)
+            // 2. Ažuriraj localStorage
+            // 3. NE otvaraj i ne renderuj editor automatski!
+            
+            // Proveri da li masterDossier postoji (iz dossier.js)
+            if (typeof masterDossier !== 'undefined') {
+                // Spoji podatke iz cloud-a sa postojećim masterDossier
+                masterDossier = { ...masterDossier, ...data };
+                console.log("🔄 masterDossier ažuriran iz cloud-a");
+            } else {
+                // Ako masterDossier još nije inicijalizovan, kreiraj ga
+                masterDossier = data;
+                console.log("📦 masterDossier kreiran iz cloud-a");
+            }
+            
+            // Sačuvaj u localStorage za offline korišćenje
+            localStorage.setItem('cv_espresso_dossier', JSON.stringify(masterDossier));
+            console.log("💾 Podaci sačuvani u LocalStorage");
+            
+            // ❌ UKLONJENO - Ne renderuj formu automatski!
+            // Ovo je bio glavni uzrok problema - editor se otvarao sam od sebe
+            
+            // ✅ SAMO ako je editor VEĆ otvoren (korisnik ga je ručno otvorio), onda osveži
+            const dossierEditor = document.getElementById('dossierEditor');
+            if (dossierEditor && 
+                !dossierEditor.classList.contains('hidden') && 
+                typeof renderProfessionalForm === "function") {
+                
+                console.log("📝 Editor je otvoren, osvežavam formu...");
+                renderProfessionalForm();
+            } else {
+                console.log("🔒 Editor je zatvoren, podaci sinhronizovani u pozadini");
+            }
+            
+        } else {
+            console.log("ℹ️ Nema sačuvanog profila u bazi (prvi login korisnika)");
+        }
+        
+    } catch (err) {
+        console.error("❌ Greška pri povlačenju profila iz oblaka:", err.message);
+        // Ne prekidaj aplikaciju - nastavi sa lokalnim podacima
+    } finally {
+        isSyncing = false;
+    }
+}
+
+// ============================================
+// 7. SINHRONIZACIJA NA OBLAK
+// ============================================
+// Poziva se iz dossier.js kada korisnik sačuva podatke
+
+async function syncDossierToCloud(dossierData) {
+    console.log("=== 📤 SYNC DOSSIER TO CLOUD ===");
+    
+    if (isSyncing) {
+        console.log("⏳ Sync already in progress, skipping...");
+        return;
+    }
+    
+    isSyncing = true;
+    
+    try {
+        // Provera da li je korisnik ulogovan pre slanja
+        const { data: { user }, error: authError } = await _supabase.auth.getUser();
+        
+        if (authError || !user) {
+            console.log("ℹ️ Lokalni mod: Korisnik nije ulogovan");
+            console.log("💾 Podaci sačuvani samo u brauzeru (LocalStorage)");
+            return;
+        }
+        
+        console.log("👤 Ulogovani korisnik:", user.email);
+        console.log("📊 Syncing data for user:", user.id);
+        
+        // Pripremi podatke za slanje
+        const syncData = {
+            id: user.id,
+            ...dossierData,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Upsert: Ako profil postoji - ažuriraj ga, ako ne postoji - napravi ga
+        const { data, error } = await _supabase
+            .from('profiles')
+            .upsert(syncData, {
+                onConflict: 'id' // Ključ za konflikte
+            });
+        
+        if (error) {
+            console.error("❌ Cloud Sync Greška:", error);
+            console.log("⚠️ Podaci su sačuvani lokalno, ali nisu poslati u cloud");
+        } else {
+            console.log("✅ Master Dosije je uspešno bekapovan u Supabase");
+            console.log("📊 Synced at:", syncData.updated_at);
+        }
+        
+    } catch (err) {
+        console.error("❌ Sync Exception:", err);
+    } finally {
+        isSyncing = false;
+    }
+}
+
+// ============================================
+// 8. INICIJALNA PROVERA AUTH STATUS-A
+// ============================================
+// Pokreće se odmah po učitavanju skripte
+
+(async function initAuth() {
+    console.log("=== 🔧 AUTH.JS INITIALIZED ===");
+    
+    // Proveri trenutnu session odmah
+    try {
+        const { data: { session }, error } = await _supabase.auth.getSession();
+        
+        if (error) {
+            console.error("❌ Get Session Error:", error);
+            return;
+        }
+        
+        if (session) {
+            console.log("✅ Active session found on init:", session.user.email);
+            
+            // Ažuriraj UI odmah
+            const btnLogin = document.getElementById('btnLogin');
+            const btnLogout = document.getElementById('btnLogout');
+            
+            if (btnLogin) btnLogin.classList.add('hidden');
+            if (btnLogout) btnLogout.classList.remove('hidden');
+            
+            // Povuci profile iz cloud-a
+            await fetchProfileFromCloud(session.user.id);
+        } else {
+            console.log("ℹ️ No active session on init");
+        }
+    } catch (err) {
+        console.error("❌ Init Auth Error:", err);
+    }
+})();
+
+// ============================================
+// 9. IZLOŽI FUNKCIJE GLOBALNO
+// ============================================
+// Omogući pozivanje iz HTML onclick atributa
+
+window.loginWithGoogle = loginWithGoogle;
+window.logout = logout;
+window.syncDossierToCloud = syncDossierToCloud;
+window.fetchProfileFromCloud = fetchProfileFromCloud;
+
+console.log("✅ Auth functions exposed to window object");
+--------------------
+END OF FILE: static\js\auth.js
+
+START OF FILE: static\js\dossier.js
+--------------------
+/**
+ * CVespresso - Master Dossier Logic (FINAL POPRAVKA)
+ */
+
+// 1. DUMMY PROFILE
+const dummyProfile = {
+    full_name: "Ime i Prezime",
+    title: "Vaša Profesionalna Titula",
+    motto: "Vaš profesionalni moto",
+    email: "vas.email@primer.com",
+    phone: "+381 60 000 0000",
+    location: "Grad, Država",
+    experience: [
+        { role: "Vaša Pozicija", company: "Naziv Firme", period: "2020 - 2024", desc: "Opis dostignuća" }
+    ],
+    education: [
+        { degree: "Stepen obrazovanja", school: "Naziv škole", year: "Godina" }
+    ],
+    skills: {
+        technical: ["Python", "SQL"],
+        industry: ["Offset štampa"],
+        soft: ["Liderstvo"]
+    },
+    certifications: [
+        { name: "Naziv Sertifikata", year: "2026" }
+    ],
+    projects: [
+        { name: "Naziv Projekta", desc: "Opis projekta" }
+    ]
+};
+
+// 2. GLOBALNI MASTER DOSSIER
+let masterDossier = null;
+
+// 3. INICIJALIZACIJA
+function initializeDossier() {
+    console.log("=== 📦 DOSSIER INIT STARTED ===");
+    
+    let savedDossier = null;
+    try {
+        const stored = localStorage.getItem('cv_espresso_dossier');
+        if (stored && stored.trim() !== "") {
+            savedDossier = JSON.parse(stored);
+            console.log("✅ LocalStorage: FOUND");
+        } else {
+            console.log("📁 LocalStorage: EMPTY");
+        }
+    } catch (e) {
+        console.error("❌ LocalStorage error:", e);
+        localStorage.removeItem('cv_espresso_dossier');
+    }
+    
+    const hasValidData = savedDossier && 
+                         savedDossier.full_name && 
+                         savedDossier.full_name.trim() !== "" &&
+                         savedDossier.full_name !== "Ime i Prezime";
+    
+    masterDossier = {
+        full_name: hasValidData ? savedDossier.full_name : dummyProfile.full_name,
+        title: hasValidData ? savedDossier.title : dummyProfile.title,
+        motto: hasValidData ? savedDossier.motto : dummyProfile.motto,
+        email: hasValidData ? savedDossier.email : dummyProfile.email,
+        phone: hasValidData ? savedDossier.phone : dummyProfile.phone,
+        location: hasValidData ? savedDossier.location : dummyProfile.location,
+        experience: (hasValidData && Array.isArray(savedDossier.experience)) 
+                    ? savedDossier.experience 
+                    : JSON.parse(JSON.stringify(dummyProfile.experience)),
+        education: (hasValidData && Array.isArray(savedDossier.education)) 
+                   ? savedDossier.education 
+                   : JSON.parse(JSON.stringify(dummyProfile.education)),
+        certifications: (hasValidData && Array.isArray(savedDossier.certifications)) 
+                        ? savedDossier.certifications 
+                        : JSON.parse(JSON.stringify(dummyProfile.certifications)),
+        projects: (hasValidData && Array.isArray(savedDossier.projects)) 
+                  ? savedDossier.projects 
+                  : JSON.parse(JSON.stringify(dummyProfile.projects)),
+        skills: hasValidData && savedDossier.skills 
+                ? savedDossier.skills 
+                : JSON.parse(JSON.stringify(dummyProfile.skills))
+    };
+    
+    localStorage.setItem('cv_espresso_dossier', JSON.stringify(masterDossier));
+    
+    console.log("=== 📦 DOSSIER INIT COMPLETE ===");
+    console.log("👤 User:", masterDossier.full_name);
+    console.log("📧 Email:", masterDossier.email);
+}
+
+// 4. DOM READY - SVE SE OVDE DEŠAVA
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("=== 🚀 DOM CONTENT LOADED ===");
+    
+    // Inicijalizuj dossier
+    initializeDossier();
+    
+    // Postavi event listener
+    const openDossierBtn = document.getElementById('openDossier');
+    const dossierEditor = document.getElementById('dossierEditor');
+    
+    console.log("🔘 Button:", openDossierBtn ? "FOUND" : "NOT FOUND");
+    console.log("📝 Editor:", dossierEditor ? "FOUND" : "NOT FOUND");
+    console.log("👁️ Editor Hidden:", dossierEditor?.classList.contains('hidden') ? "YES" : "NO");
+    
+    if (openDossierBtn && dossierEditor) {
+        openDossierBtn.addEventListener('click', () => {
+            console.log("=== 🎯 OPEN DOSSIER CLICKED ===");
+            dossierEditor.classList.remove('hidden');
+            renderProfessionalForm();
+        });
+    }
+    
+    // Izloži funkcije globalno
+    window.renderProfessionalForm = renderProfessionalForm;
+    window.saveProfessionalDossier = saveProfessionalDossier;
+    window.addEntry = addEntry;
+    window.removeEntry = removeEntry;
+    
+    console.log("=== ✅ DOSSIER.JS READY ===");
+});
+
+// 5. RENDER FORME
+function renderProfessionalForm() {
+    console.log("📝 Rendering form...");
+    
+    const container = document.getElementById('formContainer');
+    if (!container) {
+        console.error("❌ formContainer not found!");
+        return;
+    }
+    
+    if (!masterDossier) {
+        console.error("❌ masterDossier is null!");
+        initializeDossier();
+    }
+    
+    container.innerHTML = `
+    <div class="space-y-12 pb-20">
+        <!-- Lični Podaci -->
+        <section class="space-y-4">
+            <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30 border-b border-[var(--border)] pb-2">01. Lični Podaci</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="fName" value="${escapeHtml(masterDossier.full_name)}" class="dossier-input" placeholder="Puno ime">
+                <input type="text" id="fTitle" value="${escapeHtml(masterDossier.title)}" class="dossier-input" placeholder="Titula">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="email" id="fEmail" value="${escapeHtml(masterDossier.email)}" class="dossier-input" placeholder="Email">
+                <input type="text" id="fPhone" value="${escapeHtml(masterDossier.phone)}" class="dossier-input" placeholder="Telefon">
+                <input type="text" id="fLoc" value="${escapeHtml(masterDossier.location)}" class="dossier-input" placeholder="Lokacija">
+            </div>
+            <textarea id="fMotto" class="dossier-input h-20" placeholder="Motto">${escapeHtml(masterDossier.motto)}</textarea>
+        </section>
+
+        <!-- Obrazovanje -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">02. Obrazovanje</h3>
+                <button onclick="addEntry('education')" class="text-[9px] font-bold text-blue-500 uppercase">+ Dodaj</button>
+            </div>
+            <div id="educationList" class="space-y-4">
+                ${masterDossier.education.map((edu, i) => renderEntry('education', edu, i)).join('')}
+            </div>
+        </section>
+
+        <!-- Iskustvo -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">03. Iskustvo</h3>
+                <button onclick="addEntry('experience')" class="text-[9px] font-bold text-blue-500 uppercase">+ Dodaj</button>
+            </div>
+            <div id="experienceList" class="space-y-6">
+                ${masterDossier.experience.map((exp, i) => renderEntry('experience', exp, i)).join('')}
+            </div>
+        </section>
+
+        <!-- Veštine -->
+        <section class="space-y-6">
+            <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30 border-b border-[var(--border)] pb-2">04. Veštine</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="text-[9px] font-bold uppercase opacity-50 block mb-2">Tehničke</label>
+                    <textarea id="skillTech" class="dossier-input text-xs h-24" placeholder="Python, JS...">${escapeHtml(masterDossier.skills.technical.join(', '))}</textarea>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold uppercase opacity-50 block mb-2">Industrijske</label>
+                    <textarea id="skillInd" class="dossier-input text-xs h-24" placeholder="Offset...">${escapeHtml(masterDossier.skills.industry.join(', '))}</textarea>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold uppercase opacity-50 block mb-2">Meke veštine</label>
+                    <textarea id="skillSoft" class="dossier-input text-xs h-24" placeholder="Leadership...">${escapeHtml(masterDossier.skills.soft.join(', '))}</textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sertifikati -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">05. Sertifikati</h3>
+                <button onclick="addEntry('certifications')" class="text-[9px] font-bold text-blue-500 uppercase">+ Dodaj</button>
+            </div>
+            <div id="certificationsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${masterDossier.certifications.map((cert, i) => renderEntry('certifications', cert, i)).join('')}
+            </div>
+        </section>
+
+        <button onclick="saveProfessionalDossier()" class="btn-espresso w-full py-6 mt-12 font-black uppercase text-xs tracking-[0.5em]">
+            Sačuvaj Master Dosije
+        </button>
+    </div>`;
+    
+    console.log("✅ Form rendered");
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function renderEntry(type, data, index) {
+    if (type === 'education') {
+        return `<div class="flex gap-2 group">
+            <input type="text" class="dossier-input edu-degree flex-1" value="${escapeHtml(data.degree || '')}" placeholder="Zvanje">
+            <input type="text" class="dossier-input edu-school flex-1" value="${escapeHtml(data.school || '')}" placeholder="Škola">
+            <input type="text" class="dossier-input edu-year w-20" value="${escapeHtml(data.year || '')}" placeholder="Godina">
+            <button onclick="removeEntry('education', ${index})" class="text-red-500 opacity-20 group-hover:opacity-100">×</button>
+        </div>`;
+    }
+    if (type === 'experience') {
+        return `<div class="p-4 border border-[var(--border)] rounded-xl space-y-3 relative group">
+            <button onclick="removeEntry('experience', ${index})" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] opacity-0 group-hover:opacity-100">×</button>
+            <div class="grid grid-cols-2 gap-3">
+                <input type="text" class="dossier-input exp-role" value="${escapeHtml(data.role || '')}" placeholder="Pozicija">
+                <input type="text" class="dossier-input exp-comp" value="${escapeHtml(data.company || '')}" placeholder="Firma">
+            </div>
+            <input type="text" class="dossier-input exp-period" value="${escapeHtml(data.period || '')}" placeholder="Period">
+            <textarea class="dossier-input exp-desc h-20 text-xs" placeholder="Opis">${escapeHtml(data.desc || '')}</textarea>
+        </div>`;
+    }
+    if (type === 'certifications') {
+        return `<div class="flex gap-2 group">
+            <input type="text" class="dossier-input cert-name flex-grow" value="${escapeHtml(data.name || '')}" placeholder="Naziv">
+            <input type="text" class="dossier-input cert-year w-24" value="${escapeHtml(data.year || '')}" placeholder="Godina">
+            <button onclick="removeEntry('certifications', ${index})" class="text-red-500 opacity-30 group-hover:opacity-100">×</button>
+        </div>`;
+    }
+    return "";
+}
+
+function addEntry(type) {
+    if (type === 'education') masterDossier.education.push({ degree: "", school: "", year: "" });
+    if (type === 'experience') masterDossier.experience.push({ role: "", company: "", period: "", desc: "" });
+    if (type === 'certifications') masterDossier.certifications.push({ name: "", year: "" });
+    renderProfessionalForm();
+}
+
+function removeEntry(type, index) {
+    masterDossier[type].splice(index, 1);
+    renderProfessionalForm();
+}
+
+function saveProfessionalDossier() {
+    masterDossier.full_name = document.getElementById('fName').value.trim();
+    masterDossier.title = document.getElementById('fTitle').value.trim();
+    masterDossier.email = document.getElementById('fEmail').value.trim();
+    masterDossier.phone = document.getElementById('fPhone').value.trim();
+    masterDossier.location = document.getElementById('fLoc').value.trim();
+    masterDossier.motto = document.getElementById('fMotto').value.trim();
+    
+    masterDossier.education = Array.from(document.querySelectorAll('.edu-degree')).map((el, i) => ({
+        degree: el.value.trim(),
+        school: document.querySelectorAll('.edu-school')[i].value.trim(),
+        year: document.querySelectorAll('.edu-year')[i].value.trim()
+    })).filter(e => e.degree || e.school);
+    
+    masterDossier.experience = Array.from(document.querySelectorAll('.exp-role')).map((el, i) => ({
+        role: el.value.trim(),
+        company: document.querySelectorAll('.exp-comp')[i].value.trim(),
+        period: document.querySelectorAll('.exp-period')[i].value.trim(),
+        desc: document.querySelectorAll('.exp-desc')[i].value.trim()
+    })).filter(e => e.role || e.company);
+    
+    masterDossier.skills = {
+        technical: document.getElementById('skillTech').value.split(',').map(s => s.trim()).filter(Boolean),
+        industry: document.getElementById('skillInd').value.split(',').map(s => s.trim()).filter(Boolean),
+        soft: document.getElementById('skillSoft').value.split(',').map(s => s.trim()).filter(Boolean)
+    };
+    
+    masterDossier.certifications = Array.from(document.querySelectorAll('.cert-name')).map((el, i) => ({
+        name: el.value.trim(),
+        year: document.querySelectorAll('.cert-year')[i].value.trim()
+    })).filter(c => c.name);
+    
+    localStorage.setItem('cv_espresso_dossier', JSON.stringify(masterDossier));
+    
+    if (typeof syncDossierToCloud === "function") {
+        syncDossierToCloud(masterDossier);
+    }
+    
+    document.getElementById('dossierEditor').classList.add('hidden');
+    alert("✅ Sačuvano!");
+}
+--------------------
+END OF FILE: static\js\dossier.js
+
+START OF FILE: static\js\main.js
+--------------------
+let currentLang = 'sr';
+
+// Event Listeners
+document.getElementById('langBtn').addEventListener('click', toggleLang);
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+function toggleLang() {
+    currentLang = currentLang === 'sr' ? 'en' : 'sr';
+    document.getElementById('langBtn').innerText = currentLang;
+}
+
+function toggleTheme() {
+    const html = document.documentElement;
+    html.classList.toggle('dark');
+    const isDark = html.classList.contains('dark');
+    
+    document.getElementById('sunIcon').classList.toggle('hidden', !isDark);
+    document.getElementById('moonIcon').classList.toggle('hidden', isDark);
+    
+    localStorage.theme = isDark ? 'dark' : 'light';
+}
+
+// Inicijalna provera teme pri učitavanju
+(function initTheme() {
+    const isDarkStored = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDarkStored) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('sunIcon').classList.remove('hidden');
+        document.getElementById('moonIcon').classList.add('hidden');
+    }
+})();
+--------------------
+END OF FILE: static\js\main.js
+

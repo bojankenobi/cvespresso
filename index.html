@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="sr" class="light">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#111827">
+    <title>CVespresso | Powered by Bojan Pejić</title>
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- ✅ POPRAVLJENO: Uklonjeni razmaci u URL-ovima -->
+    <link href="https://fonts.googleapis.com/css2?family=Satisfy&family=Geist:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/static/css/tailwind-output.css">
+    <link rel="stylesheet" href="/static/css/tailwind-output.css?v=2.0">
+    <link rel="stylesheet" href="/static/css/tailwind-output.css?v=3.0">
+    <!-- ✅ POPRAVLJENO: Uklonjeni razmaci -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=TVOJ_SITE_KEY"></script>
+    
+    <!-- ✅ DODATO: Inline stil za fallback tekst boju -->
+    <style>
+        /* Fallback za --text varijablu ako nije definisana */
+        :root { --text: oklch(0.14 0 0); }
+        .dark { --text: oklch(0.99 0 0); }
+        body { color: var(--text, var(--border-hover)); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-6 font-sans transition-all duration-500 bg-[var(--bg)] text-[var(--text)]">
+    <div id="sideDrawer" class="fixed top-0 left-0 h-full w-80 bg-[var(--bg)] border-r border-[var(--border)] z-[110] transform -translate-x-full transition-transform duration-500 ease-in-out flex flex-col shadow-2xl">
+        
+        <div class="p-6 flex justify-between items-center border-b border-[var(--border)]">
+            <h2 class="text-xs font-black uppercase tracking-widest opacity-50">Tvoj Arhiv</h2>
+            <button id="btnCloseMenu" class="opacity-40 hover:opacity-100 text-xl text-[var(--border-hover)]">&times;</button>
+        </div>
+
+        <div class="p-6 border-b border-[var(--border)]">
+            <button id="drawerOpenDossier" class="btn-espresso w-full py-3 rounded-lg text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                Master Dossier
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-4" id="applicationsList">
+            <div class="text-center opacity-20 text-[10px] uppercase font-bold tracking-widest mt-10">
+                Nema sačuvanih CV-jeva
+            </div>
+            
+            </div>
+        
+        <div class="p-4 border-t border-[var(--border)] text-center">
+            <span class="text-[9px] font-bold uppercase tracking-widest opacity-30" id="usageLimitText">Iskorišćeno: 0 / 50</span>
+        </div>
+    </div>
+
+    <div id="drawerBackdrop" class="fixed inset-0 bg-black/50 z-[105] hidden transition-opacity duration-500 opacity-0"></div>
+
+    <div id="authBar" class="fixed top-4 right-6 z-[100] flex gap-4">
+        <button id="btnLogin" onclick="loginWithGoogle()" class="text-[9px] font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-all bg-[var(--bg)] p-2 rounded border border-[var(--border)]">
+            [ Sign in with Google ]
+        </button>
+        <button id="btnLogout" onclick="logout()" class="hidden text-[9px] font-black uppercase tracking-[0.3em] text-red-500 hover:opacity-100 transition-all bg-[var(--bg)] p-2 rounded border border-red-900/20">
+            [ Logout ]
+        </button>
+    </div>
+
+    <header class="w-full max-w-2xl flex justify-between items-center mb-16 mt-12">
+        <div class="flex items-center gap-4">
+            <button id="btnMenu" class="focus:outline-none opacity-40 hover:opacity-100 transition-opacity">
+                <svg class="w-6 h-6 stroke-[var(--border-hover)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            
+            <div class="flex items-baseline gap-1 select-none">
+                <span class="text-2xl font-bold tracking-tighter uppercase">CV</span>
+                <span class="text-3xl font-cursive">espresso</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-8">
+            <button id="btnHelp" class="text-[10px] font-bold tracking-[0.2em] uppercase opacity-40 hover:opacity-100 transition-opacity">
+                [ Info ]
+            </button>
+
+            <button id="langBtn" class="text-xs font-bold tracking-[0.2em] uppercase opacity-40 hover:opacity-100 transition-opacity">
+                sr
+            </button>
+            <button id="themeToggle" class="focus:outline-none">
+                <svg id="sunIcon" class="icon-toggle hidden w-5 h-5" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg id="moonIcon" class="icon-toggle w-5 h-5" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-2xl space-y-10">
+        
+
+        <textarea id="jobDesc" rows="12" 
+            class="w-full p-6 rounded-xl transition-all resize-none placeholder:opacity-20 shadow-inner bg-transparent border border-[var(--border)]" 
+            placeholder="Paste your job specs..."></textarea>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button id="btnCV" class="btn-espresso py-4 rounded-lg text-[10px] font-bold uppercase tracking-[0.3em]">
+                Build CV
+            </button>
+            <button id="btnCL" class="btn-espresso py-4 rounded-lg text-[10px] font-bold uppercase tracking-[0.3em]">
+                Letter
+            </button>
+        </div>
+    </main>
+
+    <!-- ✅ Editor je hidden by default - dobro! -->
+    <div id="dossierEditor" class="hidden fixed inset-0 z-50 bg-[var(--bg)] p-6 md:p-20 overflow-y-auto transition-all duration-500">
+        <div class="max-w-2xl mx-auto">
+            <header class="flex justify-between items-center mb-12 border-b border-[var(--border)] pb-6">
+                <h2 class="text-xl font-bold uppercase tracking-widest">Master <span class="font-cursive lowercase">dossier</span></h2>
+                <button onclick="document.getElementById('dossierEditor').classList.add('hidden')" class="opacity-40 hover:opacity-100 font-bold text-[10px] uppercase tracking-widest">[ Zatvori ]</button>
+            </header>
+            
+            <div id="formContainer" class="space-y-8 pb-20"></div>
+        </div>
+    </div>
+
+    <div id="helpModal" class="fixed inset-0 z-[120] flex items-center justify-center hidden">
+        <div id="helpBackdrop" class="absolute inset-0 bg-black/50 transition-opacity duration-300 opacity-0"></div>
+        
+        <div id="helpContent" class="relative bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-center mb-6 border-b border-[var(--border)] pb-4">
+                <h3 class="text-sm font-black uppercase tracking-widest text-[var(--border-hover)]" id="helpTitle">Kako se koristi?</h3>
+                <button id="btnCloseHelp" class="text-2xl font-bold opacity-40 hover:opacity-100">&times;</button>
+            </div>
+            
+            <div class="space-y-4 text-sm opacity-80" id="helpTextSr">
+                <p><strong>1. Vaš Profil:</strong> Otvorite meni (gore levo) i popunite <em>Master Dossier</em>. Tu unosite sve vaše veštine, obrazovanje i celokupno radno iskustvo.</p>
+                <p><strong>2. Oglas za posao:</strong> Pronašli ste posao? Prekopirajte ceo tekst tog oglasa u veliko polje na sredini ekrana.</p>
+                <p><strong>3. Magija:</strong> Kliknite na <strong>Build CV</strong> ili <strong>Letter</strong>. AI će analizirati oglas, izvući samo ono što je bitno iz vašeg dosijea i skrojiti vam savršen PDF dokument.</p>
+                <p><strong>4. Arhiva:</strong> Svaki dokument se automatski čuva u fioci (limit je 50 aplikacija).</p>
+            </div>
+
+            <div class="space-y-4 text-sm opacity-80 hidden" id="helpTextEn">
+                <p><strong>1. Your Profile:</strong> Open the menu (top left) and fill out your <em>Master Dossier</em>. Enter all your skills, education, and full work history here.</p>
+                <p><strong>2. Job Spec:</strong> Found a job? Paste the text of the job description you are applying for into the main text area.</p>
+                <p><strong>3. The Magic:</strong> Click <strong>Build CV</strong> or <strong>Letter</strong>. The AI will analyze the job, extract the most relevant info from your Dossier, and generate a tailored PDF document.</p>
+                <p><strong>4. Archive:</strong> Every generated document is automatically saved in your drawer (limit is 50 applications).</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="pdfModal" class="fixed inset-0 z-[150] flex flex-col items-center justify-center hidden">
+        <div id="pdfBackdrop" class="absolute inset-0 bg-black/80 transition-opacity"></div>
+        
+        <div class="relative w-full max-w-4xl h-[90vh] bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden m-4 z-10">
+            <div class="flex justify-between items-center p-4 border-b border-[var(--border)] bg-[var(--bg)]">
+                <h3 class="text-xs font-black uppercase tracking-widest opacity-50" id="pdfTitle">Pregled Dokumenta</h3>
+                <div class="flex gap-4">
+                    <button id="btnDownloadPdf" class="btn-espresso px-4 py-2 rounded text-[10px] font-bold uppercase tracking-widest border border-green-500/50 hover:bg-green-500/10 text-green-500">
+                        ↓ Preuzmi PDF
+                    </button>
+                    <button id="btnClosePdf" class="text-2xl font-bold opacity-40 hover:opacity-100 px-2">&times;</button>
+                </div>
+            </div>
+            <iframe id="pdfFrame" class="w-full flex-1 bg-white"></iframe>
+        </div>
+    </div>
+
+    <footer class="mt-auto py-12 text-[8px] font-bold uppercase tracking-[0.6em] select-none text-center w-full opacity-30">
+        Bojan Pejić &copy; 2026 | Head of Production
+    </footer>
+
+    <!-- ✅ SKRIPTE NA KRAJU - PRAVILAN REDOSLED -->
+    <script src="/static/js/main.js?v=5"></script>
+    <script src="/static/js/dossier.js?v=5"></script>
+    <script src="/static/js/api.js?v=5"></script>
+    <script src="/static/js/auth.js?v=5"></script>
+    
+    <!-- ✅ DODATO: Debug log za potvrdu da je sve učitano -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("=== ✅ INDEX.HTML FULLY LOADED ===");
+            console.log("🔘 openDossier btn:", document.getElementById('openDossier') ? "OK" : "MISSING");
+            console.log("📝 dossierEditor:", document.getElementById('dossierEditor')?.classList.contains('hidden') ? "HIDDEN (good!)" : "VISIBLE (bad!)");
+        });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                console.log('PWA Service Worker registrovan!', reg);
+            }).catch(err => {
+                console.log('PWA Service Worker greška:', err);
+            });
+            });
+        }
+    </script>
+</body>
+</html>

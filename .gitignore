@@ -1,0 +1,38 @@
+# =========================
+# 1. TAJNE I KLJUČEVI (KRITIČNO)
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# 2. VIRTUELNA OKRUŽENJA
+# =========================
+# (Ovo je tvoj lokalni Python, preveliko je za GitHub i svaki server pravi svoje)
+venv/
+env/
+.venv/
+
+# =========================
+# 3. PYTHON KEŠ (SMEĆE)
+# =========================
+# (Python pravi ove fajlove dok radi, ne trebaju nam na serveru)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# 4. NODE I TAILWIND
+# =========================
+# (Ako si koristio npm za instalaciju Tailwinda)
+node_modules/
+
+# =========================
+# 5. OPERATIVNI SISTEMI
+# =========================
+# (Nevidljivi fajlovi koje Mac i Windows prave sami od sebe)
+.DS_Store
+Thumbs.db
+
+tailwindcss.exe

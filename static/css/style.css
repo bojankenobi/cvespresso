@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@source "../../index.html";
+@source "../js/**/*.js";
+@source "../../api/templates/**/*.html";
+
+/* OKLCH paleta */
+:root {
+    --bg: oklch(0.97 0.01 75); /* Topla, prigušena bela - ne zamara oči */
+    --border: oklch(0.88 0.01 75); /* Prilagođena ivica uz novu pozadinu */
+    --border-hover: oklch(0.20 0.02 75); /* Mekša crna za tekst i hover */
+    --footer: oklch(0.80 0.01 75);
+}
+
+.dark {
+    --bg: oklch(0.25 0.02 240);
+    --border: oklch(0.35 0.02 240);
+    --border-hover: oklch(0.99 0 0);
+    --footer: oklch(0.30 0.02 240);
+}
+
+body { 
+    background-color: var(--bg); 
+    color: var(--border-hover); 
+}
+
+.btn-espresso {
+    background-color: transparent;
+    border: 2px solid var(--border); /* Podebljano sa 1px na 2px */
+    color: var(--border-hover);
+    transition: all 0.4s ease; /* Usporeno za glatkiji, zen prelaz */
+}
+
+.btn-espresso:hover {
+    border-color: var(--border-hover);
+    /* Suptilni glow efekat pri prelasku miša (20% vidljivosti boje teksta) */
+    box-shadow: 0 0 20px color-mix(in oklch, var(--border-hover) 20%, transparent);
+}
+
+.icon-toggle { 
+    width: 20px; 
+    height: 20px; 
+    stroke: currentColor; 
+    fill: none; 
+    opacity: 0.4; 
+    transition: opacity 0.3s; 
+}
+
+.icon-toggle:hover { opacity: 1; }
+
+textarea { 
+    background-color: transparent; 
+    border: 1px solid var(--border); 
+    color: inherit; 
+}
+
+/* --- GLAVNI UNOS (JOB SPECS) --- */
+textarea { 
+    background-color: transparent; 
+    border: 2px solid var(--border); /* Podebljano na 2px */
+    color: inherit; 
+    transition: all 0.4s ease; /* Dodata glatka tranzicija */
+}
+
+textarea:focus { 
+    border-color: var(--border-hover); 
+    outline: none; 
+    /* Razliveni, duboki glow kada se klikne na polje (15% vidljivosti) */
+    box-shadow: 0 0 25px color-mix(in oklch, var(--border-hover) 15%, transparent);
+}
+
+footer { color: var(--footer); }
+
+/* Font Setup za Tailwind */
+.font-cursive { font-family: 'Satisfy', cursive; }
+
+/* Editor overlay */
+#dossierEditor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg);
+    z-index: 100;
+    overflow-y: auto;
+}
+
+/* --- MASTER DOSIJE FORMA --- */
+.dossier-input {
+    width: 100%;
+    padding: 1rem;
+    background-color: transparent;
+    border: 2px solid var(--border); /* Podebljano na 2px */
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.4s ease;
+}
+
+.dossier-input:focus {
+    border-color: var(--border-hover);
+    /* Malo manji glow za manja polja u dosijeu */
+    box-shadow: 0 0 15px color-mix(in oklch, var(--border-hover) 15%, transparent);
+}
+
+.hidden { 
+    display: none !important; 
+}

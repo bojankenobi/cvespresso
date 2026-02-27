@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { margin: 2cm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; line-height: 1.5; color: #1a1c1e; margin: 0; }
+        .header { text-align: left; margin-bottom: 30px; }
+        .full-name { font-size: 24pt; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: -1px; }
+        .contact-info { font-size: 9pt; color: #555; margin-top: 5px; }
+        
+        .section { margin-top: 25px; }
+        .section-title { 
+            font-size: 12pt; 
+            font-weight: bold; 
+            color: #004d99; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .content { margin-top: 10px; font-size: 10.5pt; text-align: justify; }
+        
+        /* Stil za tvoje projekte poput lumaerp.app ili Tron */
+        .project-item { margin-bottom: 10px; }
+        .project-name { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="full-name">{{ full_name }}</div>
+        <div class="contact-info">
+            {{ location }} | {{ email }} | {{ portfolio_url }}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Professional Summary</div>
+        <div class="content">{{ tailored_summary }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Key Projects & Automation</div>
+        <div class="content">
+            {{ tailored_projects }}
+        </div>
+    </div>
+</body>
+</html>
