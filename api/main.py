@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from groq import Groq
+from groq import AsyncGroq  # <--- IZMENA 1: Uvozimo asinhroni Groq
 from fpdf import FPDF
 
 # --- NOVI IMPORTI ZA SLOWAPI ---
@@ -43,7 +43,7 @@ FONT_PATH = os.path.join(current_dir, "arial.ttf")
 
 # --- API KLIJENT ---
 api_key = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=api_key, max_retries=0)
+client = AsyncGroq(api_key=api_key, max_retries=0)  # <--- IZMENA 2: Inicijalizacija asinhronog klijenta
 
 # --- POMOĆNE FUNKCIJE ---
 def sanitize_input(text: str) -> str:
@@ -232,7 +232,7 @@ async def generate_pdf(request: Request, dossier_req: FullDossierRequest, backgr
         """
 
     try:
-        completion = client.chat.completions.create(
+        completion = await client.chat.completions.create(  # <--- IZMENA 3: Dodato await
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": sys_msg},
@@ -389,7 +389,7 @@ async def generate_cover_letter(request: Request, dossier_req: FullDossierReques
         """
 
     try:
-        completion = client.chat.completions.create(
+        completion = await client.chat.completions.create(  # <--- IZMENA 4: Dodato await i ovde
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": sys_msg},
